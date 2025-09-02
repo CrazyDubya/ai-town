@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { DatabaseReader, MutationCtx, mutation } from './_generated/server';
 import { Descriptions } from '../data/characters';
+import { Quests } from '../data/quests';
 import * as map from '../data/gentle';
 import { insertInput } from './aiTown/insertInput';
 import { Id } from './_generated/dataModel';
@@ -79,6 +80,24 @@ async function getOrCreateDefaultWorld(ctx: MutationCtx) {
     objectTiles: map.objmap,
     animatedSprites: map.animatedsprites,
   });
+
+  const questMap = new Map<string, Id<'quests'>>();
+  for (const quest of Quests) {
+    const questId = await ctx.db.insert('quests', {
+      name: quest.name,
+      description: quest.description,
+      completionCondition: quest.completionCondition,
+    });
+    questMap.set(quest.name, questId);
+  }
+  for (const quest of Quests) {
+    if (quest.nextQuestName) {
+      const questId = questMap.get(quest.name)!;
+      const nextQuestId = questMap.get(quest.nextQuestName)!;
+      await ctx.db.patch(questId, { nextQuestId });
+    }
+  }
+
   await ctx.scheduler.runAfter(0, internal.aiTown.main.runStep, {
     worldId,
     generationNumber: engine.generationNumber,

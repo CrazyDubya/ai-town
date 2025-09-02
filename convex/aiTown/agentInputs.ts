@@ -6,6 +6,7 @@ import { movePlayer } from './movement';
 import { inputHandler } from './inputHandler';
 import { point } from '../util/types';
 import { Descriptions } from '../../data/characters';
+import { Quests } from '../../data/quests';
 import { AgentDescription } from './agentDescription';
 import { Agent } from './agent';
 
@@ -130,17 +131,22 @@ export const agentInputs = {
         description.identity,
       );
       const agentId = game.allocId('agents');
-      game.world.agents.set(
-        agentId,
-        new Agent({
-          id: agentId,
-          playerId: playerId,
-          inProgressOperation: undefined,
-          lastConversation: undefined,
-          lastInviteAttempt: undefined,
-          toRemember: undefined,
-        }),
-      );
+      const agent = new Agent({
+        id: agentId,
+        playerId: playerId,
+        inProgressOperation: undefined,
+        lastConversation: undefined,
+        lastInviteAttempt: undefined,
+        toRemember: undefined,
+      });
+      const quest = Quests.find((q) => q.assignee === description.name);
+      if (quest) {
+        const questOnGame = [...game.quests.values()].find((q) => q.name === quest.name);
+        if (questOnGame) {
+          agent.currentQuest = questOnGame.id;
+        }
+      }
+      game.world.agents.set(agentId, agent);
       game.agentDescriptions.set(
         agentId,
         new AgentDescription({

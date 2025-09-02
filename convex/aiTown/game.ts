@@ -26,11 +26,21 @@ import { HistoricalObject } from '../engine/historicalObject';
 import { AgentDescription, serializedAgentDescription } from './agentDescription';
 import { parseMap, serializeMap } from '../util/object';
 
+const quest = v.object({
+  id: v.id('quests'),
+  name: v.string(),
+  description: v.string(),
+  completionCondition: v.string(),
+  nextQuestId: v.optional(v.id('quests')),
+});
+export type Quest = Infer<typeof quest>;
+
 const gameState = v.object({
   world: v.object(serializedWorld),
   playerDescriptions: v.array(v.object(serializedPlayerDescription)),
   agentDescriptions: v.array(v.object(serializedAgentDescription)),
   worldMap: v.object(serializedWorldMap),
+  quests: v.array(quest),
 });
 type GameState = Infer<typeof gameState>;
 
@@ -57,6 +67,7 @@ export class Game extends AbstractGame {
   worldMap: WorldMap;
   playerDescriptions: Map<GameId<'players'>, PlayerDescription>;
   agentDescriptions: Map<GameId<'agents'>, AgentDescription>;
+  quests: Map<Id<'quests'>, Quest>;
 
   pendingOperations: Array<{ name: string; args: any }> = [];
 
@@ -80,6 +91,7 @@ export class Game extends AbstractGame {
       PlayerDescription,
       (p) => p.playerId,
     );
+    this.quests = new Map(state.quests.map((q) => [q.id, q]));
 
     this.historicalLocations = new Map();
 
@@ -111,6 +123,7 @@ export class Game extends AbstractGame {
       .query('agentDescriptions')
       .withIndex('worldId', (q) => q.eq('worldId', worldId))
       .collect();
+    const quests = await db.query('quests').collect();
     const worldMapDoc = await db
       .query('maps')
       .withIndex('worldId', (q) => q.eq('worldId', worldId))
@@ -140,6 +153,7 @@ export class Game extends AbstractGame {
         playerDescriptions,
         agentDescriptions,
         worldMap,
+        quests: quests.map(({ _id, _creationTime, ...q }) => ({ ...q, id: _id })),
       },
     };
   }

@@ -34,9 +34,11 @@ export class Agent {
     operationId: string;
     started: number;
   };
+  currentQuest?: GameId<'quests'>;
 
   constructor(serialized: SerializedAgent) {
-    const { id, lastConversation, lastInviteAttempt, inProgressOperation } = serialized;
+    const { id, lastConversation, lastInviteAttempt, inProgressOperation, currentQuest } =
+      serialized;
     const playerId = parseGameId('players', serialized.playerId);
     this.id = parseGameId('agents', id);
     this.playerId = playerId;
@@ -47,6 +49,8 @@ export class Agent {
     this.lastConversation = lastConversation;
     this.lastInviteAttempt = lastInviteAttempt;
     this.inProgressOperation = inProgressOperation;
+    this.currentQuest =
+      currentQuest !== undefined ? parseGameId('quests', currentQuest) : undefined;
   }
 
   tick(game: Game, now: number) {
@@ -103,6 +107,7 @@ export class Agent {
       delete this.toRemember;
       return;
     }
+    this.tickQuest(game, now);
     if (conversation && member) {
       const [otherPlayerId, otherMember] = [...conversation.participants.entries()].find(
         ([id]) => id !== player.id,
@@ -235,6 +240,34 @@ export class Agent {
     }
   }
 
+  tickQuest(game: Game, now: number) {
+    if (!this.currentQuest) {
+      return;
+    }
+    const quest = game.quests.get(this.currentQuest);
+    if (!quest) {
+      console.error(`Quest ${this.currentQuest} not found!`);
+      delete this.currentQuest;
+      return;
+    }
+    const condition = quest.completionCondition.split(':');
+    const type = condition[0];
+    if (type === 'proximity') {
+      const otherPlayerName = condition[1];
+      const distanceThreshold = parseInt(condition[2]);
+      const otherPlayer = [...game.world.players.values()].find(
+        (p) => game.playerDescriptions.get(p.id)?.name === otherPlayerName,
+      );
+      if (otherPlayer) {
+        const player = game.world.players.get(this.playerId)!;
+        if (distance(player.position, otherPlayer.position) < distanceThreshold) {
+          console.log(`Agent ${this.id} completed quest ${quest.name}`);
+          this.currentQuest = quest.nextQuestId;
+        }
+      }
+    }
+  }
+
   startOperation<Name extends keyof AgentOperations>(
     game: Game,
     now: number,
@@ -264,6 +297,7 @@ export class Agent {
       lastConversation: this.lastConversation,
       lastInviteAttempt: this.lastInviteAttempt,
       inProgressOperation: this.inProgressOperation,
+      currentQuest: this.currentQuest,
     };
   }
 }
@@ -271,6 +305,7 @@ export class Agent {
 export const serializedAgent = {
   id: agentId,
   playerId: playerId,
+  currentQuest: v.optional(v.id('quests')),
   toRemember: v.optional(conversationId),
   lastConversation: v.optional(v.number()),
   lastInviteAttempt: v.optional(v.number()),
