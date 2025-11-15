@@ -21,6 +21,13 @@ export default defineSchema({
     .index('conversationId', ['worldId', 'conversationId'])
     .index('messageUuid', ['conversationId', 'messageUuid']),
 
+  quests: defineTable({
+    name: v.string(),
+    description: v.string(),
+    completionCondition: v.string(),
+    nextQuestId: v.optional(v.id('quests')),
+  }),
+
   ...agentTables,
   ...aiTownTables,
   ...engineTables,
