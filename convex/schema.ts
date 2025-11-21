@@ -5,6 +5,7 @@ import { aiTownTables } from './aiTown/schema';
 import { conversationId, playerId } from './aiTown/ids';
 import { engineTables } from './engine/schema';
 import { emotionTables } from './emotions/schema';
+import { worldTables } from './world/schema';
 
 export default defineSchema({
   music: defineTable({
@@ -33,4 +34,5 @@ export default defineSchema({
   ...aiTownTables,
   ...engineTables,
   ...emotionTables,
+  ...worldTables,
 });

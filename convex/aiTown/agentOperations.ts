@@ -188,6 +188,7 @@ export const initializeAgentEmotions = internalAction({
   },
   handler: async (ctx, args) => {
     try {
+      // Initialize emotions
       await ctx.runMutation(internal.emotions.initialization.initializeAgentPsychology, {
         worldId: args.worldId,
         agentId: args.agentId,
@@ -195,9 +196,17 @@ export const initializeAgentEmotions = internalAction({
         characterName: args.characterName,
       });
       console.log(`Initialized emotions for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 2: Initialize resources (energy, rest, nourishment, social battery)
+      await ctx.runMutation(internal.world.resourceEngine.initializeAgentResources, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+        playerId: args.playerId,
+      });
+      console.log(`Initialized resources for agent ${args.characterName} (${args.agentId})`);
     } catch (error) {
-      console.log(`Could not initialize emotions for agent ${args.agentId}:`, error);
-      // Don't fail agent creation if emotion initialization fails
+      console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
+      // Don't fail agent creation if initialization fails
     }
   },
 });
