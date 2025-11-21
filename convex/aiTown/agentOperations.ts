@@ -176,3 +176,28 @@ function wanderDestination(worldMap: WorldMap) {
     y: 1 + Math.floor(Math.random() * (worldMap.height - 2)),
   };
 }
+
+// PHASE 1: Initialize emotional intelligence for a new agent
+export const initializeAgentEmotions = internalAction({
+  args: {
+    worldId: v.id('worlds'),
+    agentId: v.string(),
+    playerId: v.string(),
+    characterName: v.string(),
+    operationId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.emotions.initialization.initializeAgentPsychology, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+        playerId: args.playerId,
+        characterName: args.characterName,
+      });
+      console.log(`Initialized emotions for agent ${args.characterName} (${args.agentId})`);
+    } catch (error) {
+      console.log(`Could not initialize emotions for agent ${args.agentId}:`, error);
+      // Don't fail agent creation if emotion initialization fails
+    }
+  },
+});

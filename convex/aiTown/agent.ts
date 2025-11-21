@@ -333,6 +333,9 @@ export async function runAgentOperation(ctx: MutationCtx, operation: string, arg
     case 'agentDoSomething':
       reference = internal.aiTown.agentOperations.agentDoSomething;
       break;
+    case 'initializeAgentEmotions':
+      reference = internal.aiTown.agentOperations.initializeAgentEmotions;
+      break;
     default:
       throw new Error(`Unknown operation: ${operation}`);
   }
