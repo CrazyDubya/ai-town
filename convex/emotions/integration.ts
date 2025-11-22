@@ -176,6 +176,22 @@ export const updateEmotionsFromConversation = internalMutation({
         context: 'conversation',
         conversationId: args.conversationId,
       });
+
+      // PHASE 3: Process social effects (reputation changes)
+      if (args.eventType === 'conversation_ended') {
+        const wasPositive = change.emotion === 'joy' || change.emotion === 'trust';
+        try {
+          await ctx.runMutation(internal.social.integration.processConversationSocialEffects, {
+            worldId: args.worldId,
+            agent1Id: args.agentId,
+            agent2Id: args.otherAgentId,
+            wasPositive,
+            impactStrength: 0.5,
+          });
+        } catch (e) {
+          console.log('Could not process social effects:', e);
+        }
+      }
     }
   },
 });

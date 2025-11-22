@@ -204,6 +204,13 @@ export const initializeAgentEmotions = internalAction({
         playerId: args.playerId,
       });
       console.log(`Initialized resources for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 3: Initialize social systems (reputation)
+      await ctx.runMutation(internal.social.integration.initializeAgentSocialSystems, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+      console.log(`Initialized social systems for agent ${args.characterName} (${args.agentId})`);
     } catch (error) {
       console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
       // Don't fail agent creation if initialization fails
