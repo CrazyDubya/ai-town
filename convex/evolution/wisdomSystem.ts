@@ -219,12 +219,39 @@ export const shareWisdom = internalMutation({
     if (success) {
       const now = Date.now();
 
+      const newKnownBy = [...wisdom.knownBy, args.learnerId];
+      const newTimesShared = wisdom.timesShared + 1;
+      const newCulturalValue = Math.min(100, wisdom.culturalValue + 1);
+
       await ctx.db.patch(args.wisdomId, {
-        knownBy: [...wisdom.knownBy, args.learnerId],
-        timesShared: wisdom.timesShared + 1,
+        knownBy: newKnownBy,
+        timesShared: newTimesShared,
         lastShared: now,
-        culturalValue: Math.min(100, wisdom.culturalValue + 1),
+        culturalValue: newCulturalValue,
       });
+
+      // ENHANCEMENT: When wisdom becomes widely shared and valued, transform into mythology
+      if (
+        newCulturalValue >= 80 &&
+        newKnownBy.length >= 5 &&
+        newTimesShared >= 10
+      ) {
+        try {
+          await ctx.runMutation(internal.narrative.mythologySystem.createMythFromWisdom, {
+            worldId: args.worldId,
+            wisdomId: args.wisdomId,
+            wisdomContent: wisdom.content,
+            culturalValue: newCulturalValue,
+            knownByCount: newKnownBy.length,
+          });
+
+          console.log(
+            `📜 TRANSFORMATION: Wisdom "${wisdom.content.slice(0, 50)}..." became cultural mythology`
+          );
+        } catch (e) {
+          console.log('Could not transform wisdom to mythology:', e);
+        }
+      }
 
       // Update agent legacy
       await updateAgentLegacy(ctx, args.worldId, args.teacherId, 'apprenticesTrained', args.learnerId);

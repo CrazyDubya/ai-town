@@ -311,6 +311,63 @@ export function applyEmotionalContagion(
 }
 
 /**
+ * ENHANCEMENT: Calculate how personality traits modulate emotional intensity
+ *
+ * High neuroticism amplifies negative emotions
+ * High agreeableness amplifies positive social emotions
+ * High extraversion amplifies high-arousal emotions
+ */
+function getPersonalityEmotionModifier(
+  emotion: string,
+  personality: {
+    openness: number;
+    conscientiousness: number;
+    extraversion: number;
+    agreeableness: number;
+    neuroticism: number;
+  }
+): number {
+  let modifier = 1.0;
+
+  // Neuroticism amplifies negative emotions (fear, sadness, anger)
+  if (emotion === 'fear' || emotion === 'sadness' || emotion === 'anger') {
+    // High neuroticism (80+) → 1.3x multiplier
+    // Low neuroticism (20-) → 0.7x multiplier
+    modifier *= 0.7 + (personality.neuroticism / 100) * 0.6;
+  }
+
+  // Neuroticism dampens positive emotions
+  if (emotion === 'joy' || emotion === 'trust') {
+    modifier *= 1.3 - (personality.neuroticism / 100) * 0.6;
+  }
+
+  // Agreeableness amplifies trust and dampens disgust/anger
+  if (emotion === 'trust') {
+    modifier *= 0.8 + (personality.agreeableness / 100) * 0.4;
+  }
+  if (emotion === 'disgust' || emotion === 'anger') {
+    modifier *= 1.2 - (personality.agreeableness / 100) * 0.4;
+  }
+
+  // Extraversion amplifies high-arousal emotions (joy, anger, surprise, anticipation)
+  if (emotion === 'joy' || emotion === 'anger' || emotion === 'surprise' || emotion === 'anticipation') {
+    modifier *= 0.9 + (personality.extraversion / 100) * 0.3;
+  }
+
+  // Openness amplifies surprise and anticipation
+  if (emotion === 'surprise' || emotion === 'anticipation') {
+    modifier *= 0.9 + (personality.openness / 100) * 0.2;
+  }
+
+  // Conscientiousness dampens impulsive emotions (surprise, anger)
+  if (emotion === 'surprise' || emotion === 'anger') {
+    modifier *= 1.1 - (personality.conscientiousness / 100) * 0.2;
+  }
+
+  return Math.max(0.5, Math.min(1.5, modifier)); // Cap between 0.5x and 1.5x
+}
+
+/**
  * Trigger emotion in an agent
  */
 export const triggerEmotion = internalMutation({
@@ -343,12 +400,19 @@ export const triggerEmotion = internalMutation({
       agentPsych.emotionalRegulation,
     );
 
-    // Apply new emotion
+    // Apply new emotion with personality modulation
     const emotionKey = args.emotion as keyof typeof decayedEmotions;
     if (emotionKey in decayedEmotions) {
+      // ENHANCEMENT: Personality affects emotional intensity
+      const personalityModifier = getPersonalityEmotionModifier(
+        args.emotion,
+        agentPsych.personality
+      );
+      const modulatedIntensity = args.intensity * personalityModifier;
+
       decayedEmotions[emotionKey] = Math.min(
         100,
-        decayedEmotions[emotionKey] + args.intensity,
+        decayedEmotions[emotionKey] + modulatedIntensity,
       );
     }
 

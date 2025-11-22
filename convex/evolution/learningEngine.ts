@@ -97,6 +97,7 @@ export const recordLearningEvent = internalMutation({
 
       const newProficiency = Math.min(100, skill.proficiency + proficiencyGain);
       const newLevel = determineProficiencyLevel(newProficiency);
+      const oldLevel = skill.proficiencyLevel;
 
       await ctx.db.patch(skill._id, {
         proficiency: newProficiency,
@@ -106,6 +107,43 @@ export const recordLearningEvent = internalMutation({
         lastPracticed: now,
         updatedAt: now,
       });
+
+      // ENHANCEMENT: Reaching expert/master level is a cinematic moment!
+      if (newLevel !== oldLevel && (newLevel === 'expert' || newLevel === 'master')) {
+        try {
+          const skillTitle =
+            newLevel === 'master'
+              ? `Mastery Achieved: ${args.skillName}`
+              : `Expertise Attained: ${args.skillName}`;
+
+          const skillDescription =
+            newLevel === 'master'
+              ? `${args.agentId} has achieved complete mastery of ${args.skillName}, reaching the pinnacle of ${args.skillCategory} ability.`
+              : `${args.agentId} has become an expert in ${args.skillName}, demonstrating exceptional ${args.skillCategory} proficiency.`;
+
+          // Create narrative event for this milestone
+          const eventId = await ctx.runMutation(internal.narrative.integration.recordNarrativeEvent, {
+            worldId: args.worldId,
+            eventType: 'skill_milestone',
+            title: skillTitle,
+            description: skillDescription,
+            primaryAgents: [args.agentId],
+            significance: newLevel === 'master' ? 85 : 70,
+            emotions: {
+              joy: 70,
+              sadness: 0,
+              anger: 0,
+              fear: 0,
+            },
+          });
+
+          console.log(
+            `🎓 MILESTONE: ${args.agentId} reached ${newLevel} level in ${args.skillName}`
+          );
+        } catch (e) {
+          console.log('Could not record skill milestone:', e);
+        }
+      }
     }
 
     // Record learning event
@@ -123,6 +161,25 @@ export const recordLearningEvent = internalMutation({
       proficiencyGain,
       occurredAt: now,
     });
+
+    // ENHANCEMENT: Skill growth satisfies competence psychological need
+    if (proficiencyGain > 0) {
+      try {
+        // Scale competence boost based on proficiency gain (bigger gains = more satisfaction)
+        const competenceBoost = Math.min(15, Math.ceil(proficiencyGain * 2));
+
+        await ctx.runMutation(internal.emotions.engine.updateNeeds, {
+          worldId: args.worldId,
+          agentId: args.agentId,
+          needChanges: {
+            competence: competenceBoost,
+          },
+        });
+      } catch (e) {
+        // Silently fail if emotions system not available
+        console.log('Could not update competence need:', e);
+      }
+    }
 
     return { proficiencyGain, newProficiency: (skill as any).proficiency + proficiencyGain };
   },
