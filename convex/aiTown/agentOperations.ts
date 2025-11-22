@@ -218,6 +218,27 @@ export const initializeAgentEmotions = internalAction({
         agentId: args.agentId,
       });
       console.log(`Initialized narrative systems for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 6: Initialize evolution systems (learning, personality tracking, legacy)
+      const psychology = await ctx.runQuery(internal.emotions.integration.getEmotionalContext, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+
+      if (psychology) {
+        await ctx.runMutation(internal.evolution.integration.initializeAgentEvolution, {
+          worldId: args.worldId,
+          agentId: args.agentId,
+          baselinePersonality: {
+            openness: psychology.personality.openness,
+            conscientiousness: psychology.personality.conscientiousness,
+            extraversion: psychology.personality.extraversion,
+            agreeableness: psychology.personality.agreeableness,
+            neuroticism: psychology.personality.neuroticism,
+          },
+        });
+        console.log(`Initialized evolution systems for agent ${args.characterName} (${args.agentId})`);
+      }
     } catch (error) {
       console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
       // Don't fail agent creation if initialization fails

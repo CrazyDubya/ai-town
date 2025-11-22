@@ -9,6 +9,7 @@ import { worldTables } from './world/schema';
 import { socialTables } from './social/schema';
 import { narrativeTables } from './narrative/schema';
 import { cinematicTables } from './cinematic/schema';
+import { evolutionTables } from './evolution/schema';
 
 export default defineSchema({
   music: defineTable({
@@ -41,4 +42,5 @@ export default defineSchema({
   ...socialTables,
   ...narrativeTables,
   ...cinematicTables,
+  ...evolutionTables,
 });

@@ -214,6 +214,24 @@ export const processConversationNarrative = internalAction({
         listenerId: args.agent2Id,
       });
     }
+
+    // PHASE 6: Process for evolution (learning and personality change)
+    try {
+      const hasConflict = await ctx.runQuery(internal.narrative.conflictEngine.getAgentConflicts, {
+        worldId: args.worldId,
+        agentId: args.agent1Id,
+      });
+
+      await ctx.runAction(internal.evolution.integration.processConversationForEvolution, {
+        worldId: args.worldId,
+        agent1Id: args.agent1Id,
+        agent2Id: args.agent2Id,
+        wasPositive: args.wasPositive,
+        hadConflict: hasConflict.length > 0,
+      });
+    } catch (e) {
+      console.log('Could not process evolution:', e);
+    }
   },
 });
 
@@ -272,6 +290,15 @@ export const gameMasterTick = internalAction({
     await ctx.runMutation(internal.narrative.mythologySystem.evolveMythology, {
       worldId: args.worldId,
     });
+
+    // PHASE 6: Evolution tick (skill decay, mentorship sessions, wisdom at-risk tracking)
+    try {
+      await ctx.runAction(internal.evolution.integration.evolutionTick, {
+        worldId: args.worldId,
+      });
+    } catch (e) {
+      console.log('Evolution tick error:', e);
+    }
   },
 });
 
