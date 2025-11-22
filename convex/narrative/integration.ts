@@ -124,6 +124,16 @@ export const recordNarrativeEvent = internalMutation({
       eventId,
     });
 
+    // PHASE 5: Detect cinematic moments
+    try {
+      await ctx.runMutation(internal.cinematic.momentDetection.detectCinematicMoment, {
+        worldId: args.worldId,
+        eventId,
+      });
+    } catch (e) {
+      console.log('Could not detect cinematic moment:', e);
+    }
+
     return eventId;
   },
 });
