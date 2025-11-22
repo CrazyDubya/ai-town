@@ -63,6 +63,20 @@ export async function startConversationMessage(
     console.log('Emotional system not available:', e);
   }
 
+  // PHASE 4: Inject narrative context (quests, conflicts, mythology)
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.narrative.integration.enhancePromptWithNarrative, {
+      worldId,
+      agentId: agent.id,
+      otherAgentId: otherAgent?.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Narrative system not available:', e);
+  }
+
   if (memoryWithOtherPlayer) {
     prompt.push(
       `Be sure to include some detail or question about a previous conversation in your greeting.`,
@@ -145,6 +159,20 @@ export async function continueConversationMessage(
     prompt.push(...enhancedPrompt);
   } catch (e) {
     console.log('Emotional system not available:', e);
+  }
+
+  // PHASE 4: Inject narrative context (quests, conflicts, mythology)
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.narrative.integration.enhancePromptWithNarrative, {
+      worldId,
+      agentId: agent.id,
+      otherAgentId: otherAgent?.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Narrative system not available:', e);
   }
 
   prompt.push(

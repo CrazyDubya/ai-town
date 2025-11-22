@@ -211,6 +211,13 @@ export const initializeAgentEmotions = internalAction({
         agentId: args.agentId,
       });
       console.log(`Initialized social systems for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 4: Initialize narrative systems (story arcs, quests, mythology)
+      await ctx.runMutation(internal.narrative.integration.initializeAgentNarrative, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+      console.log(`Initialized narrative systems for agent ${args.characterName} (${args.agentId})`);
     } catch (error) {
       console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
       // Don't fail agent creation if initialization fails

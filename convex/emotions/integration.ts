@@ -191,6 +191,35 @@ export const updateEmotionsFromConversation = internalMutation({
         } catch (e) {
           console.log('Could not process social effects:', e);
         }
+
+        // PHASE 4: Process narrative effects (conflicts, quests, story arcs)
+        try {
+          // Get current emotional intensity for narrative significance
+          const psychology = await ctx.db
+            .query('agentPsychology')
+            .withIndex('agentId', (q: any) =>
+              q.eq('worldId', args.worldId).eq('agentId', args.agentId)
+            )
+            .first();
+
+          const emotionalIntensity = psychology
+            ? (psychology.emotionalState.joy +
+                psychology.emotionalState.sadness +
+                psychology.emotionalState.anger +
+                psychology.emotionalState.fear) /
+              4
+            : 50;
+
+          await ctx.runAction(internal.narrative.integration.processConversationNarrative, {
+            worldId: args.worldId,
+            agent1Id: args.agentId,
+            agent2Id: args.otherAgentId,
+            wasPositive,
+            emotionalIntensity,
+          });
+        } catch (e) {
+          console.log('Could not process narrative effects:', e);
+        }
       }
     }
   },

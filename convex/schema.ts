@@ -7,6 +7,7 @@ import { engineTables } from './engine/schema';
 import { emotionTables } from './emotions/schema';
 import { worldTables } from './world/schema';
 import { socialTables } from './social/schema';
+import { narrativeTables } from './narrative/schema';
 
 export default defineSchema({
   music: defineTable({
@@ -37,4 +38,5 @@ export default defineSchema({
   ...emotionTables,
   ...worldTables,
   ...socialTables,
+  ...narrativeTables,
 });
