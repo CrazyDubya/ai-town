@@ -198,12 +198,66 @@ export const processConversationForEvolution = internalAction({
           .map((s) => s.skillCategory);
 
         if (topSkills.length > 0) {
-          await ctx.runMutation(internal.evolution.wisdomSystem.establishMentorship, {
-            worldId: args.worldId,
-            mentorId,
-            apprenticeId,
-            focusSkills: topSkills as any[],
-          });
+          // ENHANCEMENT: Check faction compatibility and peer reputation before mentoring
+          let canMentor = true;
+
+          try {
+            // Check if they're in rival factions
+            const agent1Factions = await ctx.db
+              .query('socialFactions')
+              .withIndex('worldId', (q) => q.eq('worldId', args.worldId))
+              .filter((q) => q.eq(q.field('members').includes(args.agent1Id), true))
+              .collect();
+
+            const agent2Factions = await ctx.db
+              .query('socialFactions')
+              .withIndex('worldId', (q) => q.eq('worldId', args.worldId))
+              .filter((q) => q.eq(q.field('members').includes(args.agent2Id), true))
+              .collect();
+
+            // Check for rival factions
+            for (const f1 of agent1Factions) {
+              for (const f2 of agent2Factions) {
+                if (f1.rivals && f1.rivals.includes(f2._id.toString())) {
+                  canMentor = false;
+                  console.log(`Mentorship blocked: ${mentorId} and ${apprenticeId} are in rival factions`);
+                  break;
+                }
+              }
+              if (!canMentor) break;
+            }
+
+            // Check peer reputation (mentor must have positive view of apprentice)
+            if (canMentor) {
+              const peerRep = await ctx.db
+                .query('peerReputation')
+                .withIndex('observer', (q: any) =>
+                  q.eq('worldId', args.worldId).eq('observer', mentorId).eq('subject', apprenticeId)
+                )
+                .first();
+
+              if (peerRep) {
+                // Need at least neutral trust (>40) to mentor
+                if (peerRep.trust < 40) {
+                  canMentor = false;
+                  console.log(
+                    `Mentorship blocked: ${mentorId} has low trust in ${apprenticeId} (${peerRep.trust})`
+                  );
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Could not check faction/reputation for mentorship:', e);
+          }
+
+          if (canMentor) {
+            await ctx.runMutation(internal.evolution.wisdomSystem.establishMentorship, {
+              worldId: args.worldId,
+              mentorId,
+              apprenticeId,
+              focusSkills: topSkills as any[],
+            });
+          }
         }
       }
     }
@@ -245,6 +299,46 @@ export const evolutionTick = internalAction({
           });
         }
       }
+    }
+
+    // ENHANCEMENT: Update reputation based on skill mastery
+    try {
+      // Get all agent skills at expert/master level
+      const masterSkills = await ctx.db
+        .query('agentSkills')
+        .withIndex('proficiency', (q: any) =>
+          q.eq('worldId', args.worldId).gte('proficiency', 80)
+        )
+        .collect();
+
+      // Group by agent
+      const agentMasteryCount: Record<string, number> = {};
+      for (const skill of masterSkills) {
+        agentMasteryCount[skill.agentId] = (agentMasteryCount[skill.agentId] || 0) + 1;
+      }
+
+      // Boost reputation for skilled agents
+      for (const [agentId, masteryCount] of Object.entries(agentMasteryCount)) {
+        const reputation = await ctx.db
+          .query('agentReputation')
+          .withIndex('agentId', (q: any) =>
+            q.eq('worldId', args.worldId).eq('agentId', agentId)
+          )
+          .first();
+
+        if (reputation) {
+          // +1 reputation per mastered skill (expert/master level)
+          // This accumulates over time, making elders naturally prestigious
+          await ctx.db.patch(reputation._id, {
+            communityReputation: Math.min(100, reputation.communityReputation + masteryCount * 0.1),
+            updatedAt: Date.now(),
+          });
+
+          console.log(`Reputation boost for ${agentId}: +${masteryCount * 0.1} (${masteryCount} mastered skills)`);
+        }
+      }
+    } catch (e) {
+      console.log('Could not update reputation from skills:', e);
     }
 
     // Conduct active mentorship sessions (random selection)

@@ -98,6 +98,45 @@ export const detectCinematicMoment = internalMutation({
       });
     }
 
+    // ENHANCEMENT: Cinematic moments create emotional memories for participants
+    if (significance >= 60) {
+      // Only memorable if truly dramatic
+      try {
+        // Create memory for each primary agent
+        for (const agentId of event.primaryAgents) {
+          // Find if this event already has a memory
+          const existingMemory = await ctx.db
+            .query('memories')
+            .withIndex('participantId', (q: any) =>
+              q.eq('worldId', args.worldId).eq('participantIds', agentId)
+            )
+            .filter((q) => q.eq(q.field('description'), event.description))
+            .first();
+
+          // Create emotional memory tag for this moment
+          if (existingMemory) {
+            await ctx.db.insert('emotionalMemories', {
+              worldId: args.worldId,
+              agentId,
+              memoryId: existingMemory._id,
+              emotionType: dominantEmotion as any,
+              intensity: Math.min(100, emotionalIntensity),
+              valence: emotions.joy - emotions.sadness,
+              resonanceThreshold: 100 - significance, // More significant = easier to trigger
+              timesTriggered: 0,
+              created: now,
+            });
+
+            console.log(
+              `💭 EMOTIONAL MEMORY: ${agentId} will vividly remember "${event.title}" (${dominantEmotion}, significance: ${significance})`
+            );
+          }
+        }
+      } catch (e) {
+        console.log('Could not create emotional memories for cinematic moment:', e);
+      }
+    }
+
     return momentId;
   },
 });

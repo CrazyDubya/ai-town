@@ -460,9 +460,63 @@ export const updateQuestProgress = internalMutation({
         }
 
         if (shouldComplete) {
-          quest.objectives[i].completed = true;
-          quest.objectives[i].completedAt = now;
-          questModified = true;
+          // ENHANCEMENT: Skill proficiency affects quest success probability
+          let actuallySucceeds = true;
+
+          try {
+            // Map objective type to skill category
+            const skillCategoryMap: Record<string, string> = {
+              social: 'social',
+              emotion: 'emotional',
+              ritual: 'cultural',
+              reputation: 'leadership',
+              autonomy: 'leadership',
+              competence: 'wisdom',
+              relatedness: 'social',
+            };
+
+            const skillCategory = skillCategoryMap[objective.type];
+
+            if (skillCategory) {
+              // Get agent's skills in this category
+              const agentSkills = await ctx.db
+                .query('agentSkills')
+                .withIndex('category', (q: any) =>
+                  q.eq('worldId', args.worldId).eq('skillCategory', skillCategory)
+                )
+                .filter((q) => q.eq(q.field('agentId'), args.agentId))
+                .collect();
+
+              if (agentSkills.length > 0) {
+                // Use highest proficiency in this category
+                const maxProficiency = Math.max(...agentSkills.map((s) => s.proficiency));
+
+                // Base success rate: 50% + proficiency/2
+                // Novice (10): 55% success
+                // Competent (50): 75% success
+                // Expert (85): 92.5% success
+                // Master (100): 100% success
+                const successRate = Math.min(1.0, 0.5 + maxProficiency / 200);
+
+                actuallySucceeds = Math.random() < successRate;
+
+                if (!actuallySucceeds) {
+                  console.log(
+                    `Quest objective failed due to low ${skillCategory} skill (proficiency: ${maxProficiency}, chance: ${(successRate * 100).toFixed(1)}%)`
+                  );
+                }
+              }
+            }
+          } catch (e) {
+            // If skill system not available, always succeed
+            console.log('Could not check skills for quest completion:', e);
+          }
+
+          if (actuallySucceeds) {
+            quest.objectives[i].completed = true;
+            quest.objectives[i].completedAt = now;
+            questModified = true;
+          }
         }
 
         if (!quest.objectives[i].completed) {
