@@ -108,51 +108,38 @@ export const applyEnvironmentalEffects = internalMutation({
     const world = await ctx.db.get(args.worldId);
     if (!world) return;
 
-    // Apply effects to each agent
+    // OPTIMIZATION: Batch-process environmental effects
+    // Calculate all emotion changes first, then apply in parallel
+
+    // Calculate environmental emotion changes (same for all agents)
+    const environmentalEmotions: Array<{ emotion: string; intensity: number }> = [];
+
+    if (args.timeChanged) {
+      const timeEffects = getTimeOfDayEmotionalModifiers(worldTime.timeOfDay);
+      environmentalEmotions.push(...timeEffects.emotions.map((e) => ({
+        emotion: e.emotion,
+        intensity: e.change,
+      })));
+    }
+
+    const weatherEffects = getWeatherEmotionalEffects(
+      worldWeather.currentWeather,
+      worldWeather.weatherIntensity,
+    );
+    environmentalEmotions.push(...weatherEffects.emotions.map((e) => ({
+      emotion: e.emotion,
+      intensity: e.change,
+    })));
+
+    // Batch all emotion trigger operations
+    const emotionTriggers: Promise<any>[] = [];
+
     for (const agent of world.agents) {
-      try {
-        // Get agent's resources to check current state
-        const resources = await ctx.db
-          .query('agentResources')
-          .withIndex('agentId', (q) => q.eq('worldId', args.worldId).eq('agentId', agent.id))
-          .first();
-
-        if (!resources) continue;
-
-        // Get agent psychology
-        const agentPsych = await ctx.db
-          .query('agentPsychology')
-          .withIndex('agentId', (q) => q.eq('worldId', args.worldId).eq('agentId', agent.id))
-          .first();
-
-        if (!agentPsych) continue;
-
-        // Calculate total environmental impact
-        let emotionChanges: Array<{ emotion: string; intensity: number }> = [];
-
-        // Time of day effects (if time changed)
-        if (args.timeChanged) {
-          const timeEffects = getTimeOfDayEmotionalModifiers(worldTime.timeOfDay);
-          emotionChanges.push(...timeEffects.emotions.map((e) => ({
-            emotion: e.emotion,
-            intensity: e.change,
-          })));
-        }
-
-        // Weather effects
-        const weatherEffects = getWeatherEmotionalEffects(
-          worldWeather.currentWeather,
-          worldWeather.weatherIntensity,
-        );
-        emotionChanges.push(...weatherEffects.emotions.map((e) => ({
-          emotion: e.emotion,
-          intensity: e.change,
-        })));
-
-        // Apply emotion changes
-        for (const change of emotionChanges) {
-          if (change.intensity !== 0) {
-            await ctx.runMutation(internal.emotions.engine.triggerEmotion, {
+      // Apply each environmental emotion change to this agent
+      for (const change of environmentalEmotions) {
+        if (change.intensity !== 0) {
+          emotionTriggers.push(
+            ctx.runMutation(internal.emotions.engine.triggerEmotion, {
               worldId: args.worldId,
               agentId: agent.id,
               emotion: change.emotion,
@@ -160,13 +147,16 @@ export const applyEnvironmentalEffects = internalMutation({
               cause: args.timeChanged
                 ? `time_of_day_${worldTime.timeOfDay}`
                 : `weather_${worldWeather.currentWeather}`,
-            });
-          }
+            }).catch((e) => {
+              console.log(`Could not apply environmental effect to agent ${agent.id}:`, e);
+            })
+          );
         }
-      } catch (e) {
-        console.log(`Could not apply environmental effects to agent ${agent.id}:`, e);
       }
     }
+
+    // Execute all emotion triggers in parallel
+    await Promise.all(emotionTriggers);
 
     console.log(
       `Applied environmental effects to ${world.agents.length} agents (time: ${worldTime.timeOfDay}, weather: ${worldWeather.currentWeather})`,

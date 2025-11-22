@@ -36,13 +36,12 @@ export const recordLearningEvent = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    // Get or create skill
+    // Get or create skill (OPTIMIZED: uses composite index for O(log n) lookup)
     let skill = await ctx.db
       .query('agentSkills')
-      .withIndex('agentId', (q) =>
-        q.eq('worldId', args.worldId).eq('agentId', args.agentId)
+      .withIndex('agentSkill', (q) =>
+        q.eq('worldId', args.worldId).eq('agentId', args.agentId).eq('skillName', args.skillName)
       )
-      .filter((q) => q.eq(q.field('skillName'), args.skillName))
       .first();
 
     let proficiencyGain = 0;

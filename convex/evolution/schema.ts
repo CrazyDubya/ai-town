@@ -77,7 +77,9 @@ export const evolutionTables = {
     .index('worldId', ['worldId'])
     .index('agentId', ['worldId', 'agentId'])
     .index('category', ['worldId', 'skillCategory'])
-    .index('proficiency', ['worldId', 'proficiency']),
+    .index('proficiency', ['worldId', 'proficiency'])
+    // OPTIMIZATION: Fast lookups for specific skills by name
+    .index('agentSkill', ['worldId', 'agentId', 'skillName']),
 
   // Learning events
   learningEvents: defineTable({
