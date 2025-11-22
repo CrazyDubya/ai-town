@@ -155,7 +155,16 @@ export const agentInputs = {
           plan: description.plan,
         }),
       );
-      return { agentId };
+
+      // PHASE 1: Schedule emotional intelligence initialization
+      game.scheduleOperation('initializeAgentEmotions', {
+        worldId: game.worldId,
+        agentId,
+        playerId,
+        characterName: description.name,
+      });
+
+      return { agentId, characterName: description.name };
     },
   }),
 };

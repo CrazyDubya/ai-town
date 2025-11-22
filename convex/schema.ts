@@ -4,6 +4,12 @@ import { agentTables } from './agent/schema';
 import { aiTownTables } from './aiTown/schema';
 import { conversationId, playerId } from './aiTown/ids';
 import { engineTables } from './engine/schema';
+import { emotionTables } from './emotions/schema';
+import { worldTables } from './world/schema';
+import { socialTables } from './social/schema';
+import { narrativeTables } from './narrative/schema';
+import { cinematicTables } from './cinematic/schema';
+import { evolutionTables } from './evolution/schema';
 
 export default defineSchema({
   music: defineTable({
@@ -31,4 +37,10 @@ export default defineSchema({
   ...agentTables,
   ...aiTownTables,
   ...engineTables,
+  ...emotionTables,
+  ...worldTables,
+  ...socialTables,
+  ...narrativeTables,
+  ...cinematicTables,
+  ...evolutionTables,
 });

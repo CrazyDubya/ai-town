@@ -176,3 +176,72 @@ function wanderDestination(worldMap: WorldMap) {
     y: 1 + Math.floor(Math.random() * (worldMap.height - 2)),
   };
 }
+
+// PHASE 1: Initialize emotional intelligence for a new agent
+export const initializeAgentEmotions = internalAction({
+  args: {
+    worldId: v.id('worlds'),
+    agentId: v.string(),
+    playerId: v.string(),
+    characterName: v.string(),
+    operationId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Initialize emotions
+      await ctx.runMutation(internal.emotions.initialization.initializeAgentPsychology, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+        playerId: args.playerId,
+        characterName: args.characterName,
+      });
+      console.log(`Initialized emotions for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 2: Initialize resources (energy, rest, nourishment, social battery)
+      await ctx.runMutation(internal.world.resourceEngine.initializeAgentResources, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+        playerId: args.playerId,
+      });
+      console.log(`Initialized resources for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 3: Initialize social systems (reputation)
+      await ctx.runMutation(internal.social.integration.initializeAgentSocialSystems, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+      console.log(`Initialized social systems for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 4: Initialize narrative systems (story arcs, quests, mythology)
+      await ctx.runMutation(internal.narrative.integration.initializeAgentNarrative, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+      console.log(`Initialized narrative systems for agent ${args.characterName} (${args.agentId})`);
+
+      // PHASE 6: Initialize evolution systems (learning, personality tracking, legacy)
+      const psychology = await ctx.runQuery(internal.emotions.integration.getEmotionalContext, {
+        worldId: args.worldId,
+        agentId: args.agentId,
+      });
+
+      if (psychology) {
+        await ctx.runMutation(internal.evolution.integration.initializeAgentEvolution, {
+          worldId: args.worldId,
+          agentId: args.agentId,
+          baselinePersonality: {
+            openness: psychology.personality.openness,
+            conscientiousness: psychology.personality.conscientiousness,
+            extraversion: psychology.personality.extraversion,
+            agreeableness: psychology.personality.agreeableness,
+            neuroticism: psychology.personality.neuroticism,
+          },
+        });
+        console.log(`Initialized evolution systems for agent ${args.characterName} (${args.agentId})`);
+      }
+    } catch (error) {
+      console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
+      // Don't fail agent creation if initialization fails
+    }
+  },
+});

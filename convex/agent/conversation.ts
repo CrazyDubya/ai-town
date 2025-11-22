@@ -41,12 +41,42 @@ export async function startConversationMessage(
   const memoryWithOtherPlayer = memories.find(
     (m) => m.data.type === 'conversation' && m.data.playerIds.includes(otherPlayerId),
   );
+
   const prompt = [
     `You are ${player.name}, and you just started a conversation with ${otherPlayer.name}.`,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
   prompt.push(...previousConversationPrompt(otherPlayer, lastConversation));
   prompt.push(...relatedMemoriesPrompt(memories));
+
+  // PHASE 1: Inject emotional intelligence
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.emotions.integration.enhancePromptWithEmotions, {
+      worldId,
+      agentId: agent.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    // Emotional system not initialized yet, continue without it
+    console.log('Emotional system not available:', e);
+  }
+
+  // PHASE 4: Inject narrative context (quests, conflicts, mythology)
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.narrative.integration.enhancePromptWithNarrative, {
+      worldId,
+      agentId: agent.id,
+      otherAgentId: otherAgent?.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Narrative system not available:', e);
+  }
+
   if (memoryWithOtherPlayer) {
     prompt.push(
       `Be sure to include some detail or question about a previous conversation in your greeting.`,
@@ -65,6 +95,19 @@ export async function startConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
+
+  // PHASE 1: Trigger conversation started emotion
+  try {
+    await ctx.runMutation(internal.emotions.integration.updateEmotionsFromConversation, {
+      worldId,
+      agentId: agent.id,
+      conversationId,
+      eventType: 'conversation_started',
+    });
+  } catch (e) {
+    console.log('Could not update emotions:', e);
+  }
+
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -104,6 +147,34 @@ export async function continueConversationMessage(
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
   prompt.push(...relatedMemoriesPrompt(memories));
+
+  // PHASE 1: Inject emotional intelligence
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.emotions.integration.enhancePromptWithEmotions, {
+      worldId,
+      agentId: agent.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Emotional system not available:', e);
+  }
+
+  // PHASE 4: Inject narrative context (quests, conflicts, mythology)
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.narrative.integration.enhancePromptWithNarrative, {
+      worldId,
+      agentId: agent.id,
+      otherAgentId: otherAgent?.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Narrative system not available:', e);
+  }
+
   prompt.push(
     `Below is the current chat history between you and ${otherPlayer.name}.`,
     `DO NOT greet them again. Do NOT use the word "Hey" too often. Your response should be brief and within 200 characters.`,
@@ -130,6 +201,27 @@ export async function continueConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
+
+  // PHASE 1: Process emotional contagion during conversation
+  try {
+    const otherAgentObj = await ctx.runQuery(internal.agent.conversation.getAgentForPlayer, {
+      worldId,
+      playerId: otherPlayerId,
+    });
+    if (otherAgentObj) {
+      await ctx.runMutation(internal.emotions.engine.processContagion, {
+        worldId,
+        sourceAgentId: agent.id,
+        targetAgentId: otherAgentObj.id,
+        proximity: 1.0,
+        context: 'conversation',
+        conversationId,
+      });
+    }
+  } catch (e) {
+    console.log('Could not process emotional contagion:', e);
+  }
+
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -151,9 +243,23 @@ export async function leaveConversationMessage(
   );
   const prompt = [
     `You are ${player.name}, and you're currently in a conversation with ${otherPlayer.name}.`,
-    `You've decided to leave the question and would like to politely tell them you're leaving the conversation.`,
+    `You've decided to leave the conversation and would like to politely tell them you're leaving.`,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
+
+  // PHASE 1: Inject emotional intelligence
+  try {
+    const enhancedPrompt = await ctx.runQuery(internal.emotions.integration.enhancePromptWithEmotions, {
+      worldId,
+      agentId: agent.id,
+      basePrompt: prompt,
+    });
+    prompt.length = 0;
+    prompt.push(...enhancedPrompt);
+  } catch (e) {
+    console.log('Emotional system not available:', e);
+  }
+
   prompt.push(
     `Below is the current chat history between you and ${otherPlayer.name}.`,
     `How would you like to tell them that you're leaving? Your response should be brief and within 200 characters.`,
@@ -179,6 +285,19 @@ export async function leaveConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
+
+  // PHASE 1: Trigger conversation ended emotion
+  try {
+    await ctx.runMutation(internal.emotions.integration.updateEmotionsFromConversation, {
+      worldId,
+      agentId: agent.id,
+      conversationId,
+      eventType: 'conversation_ended',
+    });
+  } catch (e) {
+    console.log('Could not update emotions:', e);
+  }
+
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -245,6 +364,20 @@ async function previousMessages(
   }
   return llmMessages;
 }
+
+export const getAgentForPlayer = internalQuery({
+  args: {
+    worldId: v.id('worlds'),
+    playerId: playerId,
+  },
+  handler: async (ctx, args) => {
+    const world = await ctx.db.get(args.worldId);
+    if (!world) return null;
+
+    const agent = world.agents.find((a) => a.playerId === args.playerId);
+    return agent || null;
+  },
+});
 
 export const queryPromptData = internalQuery({
   args: {
