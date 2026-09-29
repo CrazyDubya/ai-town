@@ -33,7 +33,8 @@ export const memoryTables = {
   memories: defineTable(memoryFields)
     .index('embeddingId', ['embeddingId'])
     .index('playerId_type', ['playerId', 'data.type'])
-    .index('playerId', ['playerId']),
+    .index('playerId', ['playerId'])
+    .index('playerId_importance', ['playerId', 'importance']),
   memoryEmbeddings: defineTable({
     playerId,
     embedding: v.array(v.float64()),
