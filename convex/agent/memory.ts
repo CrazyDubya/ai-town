@@ -167,6 +167,7 @@ export async function searchMemories(
     limit: n * MEMORY_OVERFETCH,
   });
   const rankedMemories = await ctx.runMutation(selfInternal.rankAndTouchMemories, {
+    playerId,
     candidates,
     n,
   });
@@ -181,11 +182,13 @@ function makeRange(values: number[]) {
 
 function normalize(value: number, range: readonly [number, number]) {
   const [min, max] = range;
+  if (min === max) return 0;
   return (value - min) / (max - min);
 }
 
 export const rankAndTouchMemories = internalMutation({
   args: {
+    playerId: v.string(),
     candidates: v.array(v.object({ _id: v.id('memoryEmbeddings'), _score: v.number() })),
     n: v.number(),
   },
@@ -200,19 +203,46 @@ export const rankAndTouchMemories = internalMutation({
       return memory;
     });
 
-    // TODO: fetch <count> recent memories and <count> important memories
-    // so we don't miss them in case they were a little less relevant.
-    const recencyScore = relatedMemories.map((memory) => {
+    const recentMemories = await ctx.db
+      .query('memories')
+      .withIndex('playerId', (q) => q.eq('playerId', args.playerId))
+      .order('desc')
+      .take(args.n);
+
+    const importantMemories = await ctx.db
+      .query('memories')
+      .withIndex('playerId_importance', (q) => q.eq('playerId', args.playerId))
+      .order('desc')
+      .take(args.n);
+
+    const allMemories = [...relatedMemories, ...recentMemories, ...importantMemories];
+    const uniqueMemories: typeof allMemories = [];
+    const seen = new Set();
+    for (const memory of allMemories) {
+      if (!seen.has(memory._id)) {
+        seen.add(memory._id);
+        uniqueMemories.push(memory);
+      }
+    }
+
+    const candidateScores = new Map(args.candidates.map((c) => [c._id, c._score]));
+    const minRelevance = args.candidates.length > 0
+        ? Math.min(...args.candidates.map(c => c._score))
+        : 0;
+
+    const recencyScore = uniqueMemories.map((memory) => {
       const hoursSinceAccess = (ts - memory.lastAccess) / 1000 / 60 / 60;
       return 0.99 ** Math.floor(hoursSinceAccess);
     });
-    const relevanceRange = makeRange(args.candidates.map((c) => c._score));
-    const importanceRange = makeRange(relatedMemories.map((m) => m.importance));
+
+    const relevanceRange = makeRange(uniqueMemories.map((m) => candidateScores.get(m.embeddingId) ?? minRelevance));
+    const importanceRange = makeRange(uniqueMemories.map((m) => m.importance));
     const recencyRange = makeRange(recencyScore);
-    const memoryScores = relatedMemories.map((memory, idx) => ({
+
+    const memoryScores = uniqueMemories.map((memory, idx) => ({
       memory,
       overallScore:
-        normalize(args.candidates[idx]._score, relevanceRange) +
+        normalize(candidateScores.get(memory.embeddingId) ?? minRelevance, relevanceRange) +
         normalize(memory.importance, importanceRange) +
         normalize(recencyScore[idx], recencyRange),
     }));
