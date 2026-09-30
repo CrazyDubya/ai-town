@@ -1,5 +1,6 @@
+import { chatCompletion } from "../util/llm";
 import { v } from 'convex/values';
-import { internalAction } from '../_generated/server';
+import { internalAction, internalQuery } from '../_generated/server';
 import { WorldMap, serializedWorldMap } from './worldMap';
 import { rememberConversation } from '../agent/memory';
 import { GameId, agentId, conversationId, playerId } from './ids';
@@ -125,8 +126,41 @@ export const agentDoSomething = internalAction({
         });
         return;
       } else {
-        // TODO: have LLM choose the activity & emoji
-        const activity = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
+        let activity = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
+        try {
+          const { name, identity, plan } = await ctx.runQuery(
+            internal.aiTown.agentOperations.agentDescriptionQuery,
+            {
+              worldId: args.worldId,
+              agentId: agent.id,
+              playerId: player.id,
+            }
+          );
+
+          const prompt = `You are ${name}.
+Your identity is: ${identity}
+Your current plan is: ${plan}
+
+Choose an activity to do right now, and an emoji to represent it.
+Output in JSON format with two keys: "description" (a short string describing the activity, e.g. "reading a book") and "emoji" (a single emoji, e.g. "📖").
+`;
+          const completion = await chatCompletion({
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 100,
+            response_format: { type: 'json_object' },
+          });
+          const result = JSON.parse(completion.content);
+          if (result.description && result.emoji) {
+            activity = {
+              description: result.description,
+              emoji: result.emoji,
+              duration: 60_000,
+            };
+          }
+        } catch (e) {
+          console.error("Failed to generate activity with LLM, falling back to random:", e);
+        }
+
         await sleep(Math.random() * 1000);
         await ctx.runMutation(api.aiTown.main.sendInput, {
           worldId: args.worldId,
@@ -243,5 +277,28 @@ export const initializeAgentEmotions = internalAction({
       console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
       // Don't fail agent creation if initialization fails
     }
+  },
+});
+
+export const agentDescriptionQuery = internalQuery({
+  args: {
+    worldId: v.id('worlds'),
+    agentId: v.string(),
+    playerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const playerDescription = await ctx.db
+      .query('playerDescriptions')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('playerId', args.playerId as GameId<'players'>))
+      .first();
+    const agentDescription = await ctx.db
+      .query('agentDescriptions')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', args.agentId as GameId<'agents'>))
+      .first();
+    return {
+      name: playerDescription?.name || 'Unknown',
+      identity: agentDescription?.identity || '',
+      plan: agentDescription?.plan || '',
+    };
   },
 });
