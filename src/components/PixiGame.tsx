@@ -13,7 +13,7 @@ import { toastOnError } from '../toasts.ts';
 import { DebugPath } from './DebugPath.tsx';
 import { PositionIndicator } from './PositionIndicator.tsx';
 import { SHOW_DEBUG_UI } from './Game.tsx';
-import { ServerGame } from '../hooks/serverGame.ts';
+import { ServerGame } from '../hooks/serverGame.tsx';
 
 export const PixiGame = (props: {
   worldId: Id<'worlds'>;

@@ -10,7 +10,7 @@ import { useWorldHeartbeat } from '../hooks/useWorldHeartbeat.ts';
 import { useHistoricalTime } from '../hooks/useHistoricalTime.ts';
 import { DebugTimeManager } from './DebugTimeManager.tsx';
 import { GameId } from '../../convex/aiTown/ids.ts';
-import { useServerGame } from '../hooks/serverGame.ts';
+import { useServerGame } from '../hooks/serverGame.tsx';
 
 export const SHOW_DEBUG_UI = !!import.meta.env.VITE_SHOW_DEBUG_UI;
 
@@ -26,7 +26,7 @@ export default function Game() {
   const worldId = worldStatus?.worldId;
   const engineId = worldStatus?.engineId;
 
-  const game = useServerGame(worldId);
+  const game = useServerGame();
 
   // Send a periodic heartbeat to our world to keep it alive.
   useWorldHeartbeat();

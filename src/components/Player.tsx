@@ -9,7 +9,7 @@ import { Location, locationFields, playerLocation } from '../../convex/aiTown/lo
 import { useHistoricalValue } from '../hooks/useHistoricalValue.ts';
 import { PlayerDescription } from '../../convex/aiTown/playerDescription.ts';
 import { WorldMap } from '../../convex/aiTown/worldMap.ts';
-import { ServerGame } from '../hooks/serverGame.ts';
+import { ServerGame } from '../hooks/serverGame.tsx';
 
 export type SelectElement = (element?: { kind: 'player'; id: GameId<'players'> }) => void;
 

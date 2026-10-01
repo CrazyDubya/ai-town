@@ -3,8 +3,7 @@ import { AgentDescription } from '../../convex/aiTown/agentDescription.ts';
 import { PlayerDescription } from '../../convex/aiTown/playerDescription.ts';
 import { World } from '../../convex/aiTown/world.ts';
 import { WorldMap } from '../../convex/aiTown/worldMap.ts';
-import { Id } from '../../convex/_generated/dataModel';
-import { useMemo } from 'react';
+import { useMemo, createContext, useContext, ReactNode } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseMap } from '../../convex/util/object.ts';
@@ -16,11 +15,15 @@ export type ServerGame = {
   worldMap: WorldMap;
 };
 
-// TODO: This hook reparses the game state (even if we're not rerunning the query)
-// when used in multiple components. Move this to a context to only parse it once.
-export function useServerGame(worldId: Id<'worlds'> | undefined): ServerGame | undefined {
+
+export const ServerGameContext = createContext<ServerGame | undefined>(undefined);
+
+export function ServerGameProvider({ children }: { children: ReactNode }) {
+  const worldStatus = useQuery(api.world.defaultWorldStatus);
+  const worldId = worldStatus?.worldId;
   const worldState = useQuery(api.world.worldState, worldId ? { worldId } : 'skip');
   const descriptions = useQuery(api.world.gameDescriptions, worldId ? { worldId } : 'skip');
+
   const game = useMemo(() => {
     if (!worldState || !descriptions) {
       return undefined;
@@ -40,5 +43,15 @@ export function useServerGame(worldId: Id<'worlds'> | undefined): ServerGame | u
       worldMap: new WorldMap(descriptions.worldMap),
     };
   }, [worldState, descriptions]);
-  return game;
+
+  return (
+    <ServerGameContext.Provider value={game}>
+      {children}
+    </ServerGameContext.Provider>
+  );
+}
+
+
+export function useServerGame(): ServerGame | undefined {
+  return useContext(ServerGameContext);
 }
