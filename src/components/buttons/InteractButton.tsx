@@ -14,7 +14,7 @@ export default function InteractButton() {
   // const { isAuthenticated } = useConvexAuth();
   const worldStatus = useQuery(api.world.defaultWorldStatus);
   const worldId = worldStatus?.worldId;
-  const game = useServerGame(worldId);
+  const game = useServerGame();
   const humanTokenIdentifier = useQuery(api.world.userStatus, worldId ? { worldId } : 'skip');
   const userPlayerId =
     game && [...game.world.players.values()].find((p) => p.human === humanTokenIdentifier)?.id;

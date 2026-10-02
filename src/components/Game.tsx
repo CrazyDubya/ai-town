@@ -26,7 +26,7 @@ export default function Game() {
   const worldId = worldStatus?.worldId;
   const engineId = worldStatus?.engineId;
 
-  const game = useServerGame(worldId);
+  const game = useServerGame();
 
   // Send a periodic heartbeat to our world to keep it alive.
   useWorldHeartbeat();
