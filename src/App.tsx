@@ -16,6 +16,7 @@ import InteractButton from './components/buttons/InteractButton.tsx';
 import FreezeButton from './components/FreezeButton.tsx';
 import { MAX_HUMAN_PLAYERS } from '../convex/constants.ts';
 import PoweredByConvex from './components/PoweredByConvex.tsx';
+import { ServerGameProvider } from './components/ServerGameProvider.tsx';
 
 export default function Home() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -86,27 +87,29 @@ export default function Home() {
           </Unauthenticated> */}
         </div>
 
-        <Game />
+        <ServerGameProvider>
+          <Game />
 
-        <footer className="justify-end bottom-0 left-0 w-full flex items-center mt-4 gap-3 p-6 flex-wrap pointer-events-none">
-          <div className="flex gap-4 flex-grow pointer-events-none">
-            <FreezeButton />
-            <MusicButton />
-            <Button href="https://github.com/a16z-infra/ai-town" imgUrl={starImg}>
-              Star
-            </Button>
-            <InteractButton />
-            <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
-              Help
-            </Button>
-          </div>
-          <a href="https://a16z.com">
-            <img className="w-8 h-8 pointer-events-auto" src={a16zImg} alt="a16z" />
-          </a>
-          <a href="https://convex.dev/c/ai-town">
-            <img className="w-20 h-8 pointer-events-auto" src={convexImg} alt="Convex" />
-          </a>
-        </footer>
+          <footer className="justify-end bottom-0 left-0 w-full flex items-center mt-4 gap-3 p-6 flex-wrap pointer-events-none">
+            <div className="flex gap-4 flex-grow pointer-events-none">
+              <FreezeButton />
+              <MusicButton />
+              <Button href="https://github.com/a16z-infra/ai-town" imgUrl={starImg}>
+                Star
+              </Button>
+              <InteractButton />
+              <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
+                Help
+              </Button>
+            </div>
+            <a href="https://a16z.com">
+              <img className="w-8 h-8 pointer-events-auto" src={a16zImg} alt="a16z" />
+            </a>
+            <a href="https://convex.dev/c/ai-town">
+              <img className="w-20 h-8 pointer-events-auto" src={convexImg} alt="Convex" />
+            </a>
+          </footer>
+        </ServerGameProvider>
         <ToastContainer position="bottom-right" autoClose={2000} closeOnClick theme="dark" />
       </div>
     </main>
