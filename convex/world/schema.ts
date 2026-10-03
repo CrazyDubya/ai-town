@@ -127,7 +127,7 @@ export const worldTables = {
   // World atmosphere tracking
   worldAtmosphere: defineTable({
     worldId: v.id('worlds'),
-    ...worldAtmosphere,
+    ...worldAtmosphere.fields,
   })
     .index('worldId', ['worldId'])
     .index('timestamp', ['worldId', 'calculatedAt']),

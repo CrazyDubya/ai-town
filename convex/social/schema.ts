@@ -162,7 +162,7 @@ export const socialTables = {
   agentReputation: defineTable({
     worldId: v.id('worlds'),
     agentId: agentId,
-    ...reputationProfile,
+    ...reputationProfile.fields,
   })
     .index('worldId', ['worldId'])
     .index('agentId', ['worldId', 'agentId'])
@@ -171,7 +171,7 @@ export const socialTables = {
   // Peer-to-peer reputation (what A thinks of B)
   peerReputations: defineTable({
     worldId: v.id('worlds'),
-    ...peerReputation,
+    ...peerReputation.fields,
   })
     .index('worldId', ['worldId'])
     .index('observer', ['worldId', 'observer'])
@@ -181,7 +181,7 @@ export const socialTables = {
   // Social factions and groups
   socialFactions: defineTable({
     worldId: v.id('worlds'),
-    ...socialFaction,
+    ...socialFaction.fields,
   })
     .index('worldId', ['worldId'])
     .index('activity', ['worldId', 'lastActivity'])
@@ -203,7 +203,7 @@ export const socialTables = {
   // Social events
   socialEvents: defineTable({
     worldId: v.id('worlds'),
-    ...socialEvent,
+    ...socialEvent.fields,
   })
     .index('worldId', ['worldId'])
     .index('status', ['worldId', 'status'])
@@ -212,7 +212,7 @@ export const socialTables = {
   // INSPIRED: Emotional resonance chambers
   resonanceChambers: defineTable({
     worldId: v.id('worlds'),
-    ...resonanceChamber,
+    ...resonanceChamber.fields,
   })
     .index('worldId', ['worldId'])
     .index('active', ['worldId', 'activeResonance'])
