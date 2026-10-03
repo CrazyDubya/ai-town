@@ -148,7 +148,7 @@ export const emotionTables = {
   emotionalMemories: defineTable({
     worldId: v.id('worlds'),
     agentId,
-    ...emotionalMemory,
+    ...emotionalMemory.fields,
   })
     .index('worldId', ['worldId'])
     .index('agentMemories', ['worldId', 'agentId'])
@@ -158,7 +158,7 @@ export const emotionTables = {
   // Track emotional contagion events
   emotionalContagionEvents: defineTable({
     worldId: v.id('worlds'),
-    ...emotionalContagion,
+    ...emotionalContagion.fields,
   })
     .index('worldId', ['worldId'])
     .index('sourceAgent', ['worldId', 'sourceAgentId', 'timestamp'])
@@ -168,7 +168,7 @@ export const emotionTables = {
   // Emotional bonds between agents
   emotionalBonds: defineTable({
     worldId: v.id('worlds'),
-    ...emotionalBond,
+    ...emotionalBond.fields,
   })
     .index('worldId', ['worldId'])
     .index('agent1', ['worldId', 'agent1Id'])

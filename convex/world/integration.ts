@@ -20,14 +20,14 @@ export const initializeWorldSystems = internalMutation({
   },
   handler: async (ctx, args) => {
     // Initialize time
-    await ctx.runMutation(internal.world.timeEngine.initializeWorldTime, {
+    await ctx.runMutation(internal['world/timeEngine'].initializeWorldTime, {
       worldId: args.worldId,
       timeScale: args.timeScale || 10.0,
       startHour: args.startHour || 9,
     });
 
     // Initialize weather
-    await ctx.runMutation(internal.world.weatherEngine.initializeWorldWeather, {
+    await ctx.runMutation(internal['world/weatherEngine'].initializeWorldWeather, {
       worldId: args.worldId,
       initialWeather: 'partly_cloudy',
     });
@@ -46,22 +46,22 @@ export const worldTick = internalAction({
   },
   handler: async (ctx, args) => {
     // 1. Update time
-    const timeResult = await ctx.runMutation(internal.world.timeEngine.updateWorldTime, {
+    const timeResult = await ctx.runMutation(internal['world/timeEngine'].updateWorldTime, {
       worldId: args.worldId,
     });
 
     // 2. Calculate atmosphere from agent emotions
-    const atmosphere = await ctx.runMutation(internal.world.weatherEngine.calculateWorldAtmosphere, {
+    const atmosphere = await ctx.runMutation(internal['world/weatherEngine'].calculateWorldAtmosphere, {
       worldId: args.worldId,
     });
 
     // 3. Update weather (considers emotional influence)
-    const weatherResult = await ctx.runMutation(internal.world.weatherEngine.updateWorldWeather, {
+    const weatherResult = await ctx.runMutation(internal['world/weatherEngine'].updateWorldWeather, {
       worldId: args.worldId,
     });
 
     // 4. Apply environmental effects to all agents
-    await ctx.runMutation(internal.world.integration.applyEnvironmentalEffects, {
+    await ctx.runMutation(internal['world/integration'].applyEnvironmentalEffects, {
       worldId: args.worldId,
       timeChanged: timeResult.timeChanged,
       weatherChanged: weatherResult.weatherChanged,
@@ -139,7 +139,7 @@ export const applyEnvironmentalEffects = internalMutation({
       for (const change of environmentalEmotions) {
         if (change.intensity !== 0) {
           emotionTriggers.push(
-            ctx.runMutation(internal.emotions.engine.triggerEmotion, {
+            ctx.runMutation(internal['emotions/engine'].triggerEmotion, {
               worldId: args.worldId,
               agentId: agent.id,
               emotion: change.emotion,
@@ -175,7 +175,7 @@ export const updateAgentResourcesTick = internalAction({
   },
   handler: async (ctx, args) => {
     // Get agent's current activity
-    const world = await ctx.runQuery(internal.aiTown.game.loadWorld, {
+    const world = await ctx.runQuery(internal['aiTown/game'].loadWorld, {
       worldId: args.worldId,
       generationNumber: undefined,
     });
@@ -209,7 +209,7 @@ export const updateAgentResourcesTick = internalAction({
     }
 
     // Update resources
-    await ctx.runMutation(internal.world.resourceEngine.updateAgentResources, {
+    await ctx.runMutation(internal['world/resourceEngine'].updateAgentResources, {
       worldId: args.worldId,
       agentId: args.agentId,
       activityType,

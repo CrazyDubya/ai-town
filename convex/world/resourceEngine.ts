@@ -265,7 +265,7 @@ export const updateAgentResources = internalMutation({
 
       if (Object.keys(needChanges).length > 0) {
         try {
-          await ctx.runMutation(internal.emotions.engine.updateNeeds, {
+          await ctx.runMutation(internal['emotions/engine'].updateNeeds, {
             worldId: args.worldId,
             agentId: args.agentId,
             needChanges,
