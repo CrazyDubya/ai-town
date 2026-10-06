@@ -6,6 +6,7 @@ import { MessageInput } from './MessageInput';
 import { Player } from '../../convex/aiTown/player';
 import { Conversation } from '../../convex/aiTown/conversation';
 import { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export function Messages({
   worldId,
@@ -78,7 +79,9 @@ export function Messages({
           </time>
         </div>
         <div className={clsx('bubble', m.author === humanPlayerId && 'bubble-mine')}>
-          <p className="bg-white -mx-3 -my-1">{m.text}</p>
+          <div className="bg-white -mx-3 -my-1">
+            <ReactMarkdown components={{ p: 'span' }}>{m.text}</ReactMarkdown>
+          </div>
         </div>
       </div>
     );
