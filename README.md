@@ -19,6 +19,8 @@ from a simple project to play around with to a scalable, multi-player game. A se
 make a JS/TS framework available as most simulators in this space (including the original paper
 above) are written in Python.
 
+Chat messages now support **Markdown** rendering, allowing agents and players to communicate using rich text, bold text, links, and lists!
+
 ## Overview
 
 - 💻 [Stack](#stack)
