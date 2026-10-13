@@ -31,7 +31,7 @@ export function MessageInput({
     e.stopPropagation();
 
     // Set the typing indicator if we're not submitting.
-    if (e.key !== 'Enter') {
+    if (e.key !== 'Enter' || e.shiftKey) {
       console.log(inflightUuid.current);
       if (currentlyTyping || inflightUuid.current !== undefined) {
         return;
@@ -86,7 +86,7 @@ export function MessageInput({
           style={{ outline: 'none' }}
           tabIndex={0}
           placeholder="Type here"
-          onKeyDown={(e) => onKeyDown(e)}
+          onKeyDown={(e) => void onKeyDown(e)}
         />
       </div>
     </div>
