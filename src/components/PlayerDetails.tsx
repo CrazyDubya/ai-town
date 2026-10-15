@@ -117,7 +117,7 @@ export default function PlayerDetails({
     );
   };
   const onLeaveConversation = async () => {
-    if (!humanPlayer || !inConversationWithMe || !humanConversation) {
+    if (!humanPlayer || !humanConversation) {
       return;
     }
     await toastOnError(
@@ -154,7 +154,7 @@ export default function PlayerDetails({
             'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
             pendingSuffix('startConversation')
           }
-          onClick={onStartConversation}
+          onClick={() => void onStartConversation()}
         >
           <div className="h-full bg-clay-700 text-center">
             <span>Start conversation</span>
@@ -162,16 +162,28 @@ export default function PlayerDetails({
         </a>
       )}
       {waitingForAccept && (
-        <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
+        <a
+          className={
+            'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
+            pendingSuffix('leaveConversation')
+          }
+          onClick={() => void onLeaveConversation()}
+        >
           <div className="h-full bg-clay-700 text-center">
-            <span>Waiting for accept...</span>
+            <span>Cancel invite</span>
           </div>
         </a>
       )}
       {waitingForNearby && (
-        <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
+        <a
+          className={
+            'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
+            pendingSuffix('leaveConversation')
+          }
+          onClick={() => void onLeaveConversation()}
+        >
           <div className="h-full bg-clay-700 text-center">
-            <span>Walking over...</span>
+            <span>Cancel (walking over)</span>
           </div>
         </a>
       )}
@@ -181,7 +193,7 @@ export default function PlayerDetails({
             'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
             pendingSuffix('leaveConversation')
           }
-          onClick={onLeaveConversation}
+          onClick={() => void onLeaveConversation()}
         >
           <div className="h-full bg-clay-700 text-center">
             <span>Leave conversation</span>
@@ -195,7 +207,7 @@ export default function PlayerDetails({
               'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
               pendingSuffix('acceptInvite')
             }
-            onClick={onAcceptInvite}
+            onClick={() => void onAcceptInvite()}
           >
             <div className="h-full bg-clay-700 text-center">
               <span>Accept</span>
@@ -206,7 +218,7 @@ export default function PlayerDetails({
               'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
               pendingSuffix('rejectInvite')
             }
-            onClick={onRejectInvite}
+            onClick={() => void onRejectInvite()}
           >
             <div className="h-full bg-clay-700 text-center">
               <span>Reject</span>
