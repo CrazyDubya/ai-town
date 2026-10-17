@@ -1,4 +1,4 @@
-import { chatCompletion } from "../util/llm";
+import { chatCompletion, retryWithBackoff } from "../util/llm";
 import { v } from 'convex/values';
 import { internalAction, internalQuery } from '../_generated/server';
 import { WorldMap, serializedWorldMap } from './worldMap';
@@ -15,6 +15,27 @@ import { ACTIVITIES, ACTIVITY_COOLDOWN, CONVERSATION_COOLDOWN } from '../constan
 import { api, internal } from '../_generated/api';
 import { sleep } from '../util/sleep';
 import { serializedPlayer } from './player';
+
+import { ActionCtx } from '../_generated/server';
+
+async function sendInputWithRetries(ctx: ActionCtx, worldId: string, name: string, args: any) {
+  await retryWithBackoff(async () => {
+    try {
+      await ctx.runMutation(api.aiTown.main.sendInput, {
+        worldId: worldId as any,
+        name,
+        args,
+      });
+    } catch (e: any) {
+      // We only want to retry on OCC errors, which usually manifest as retries taking too long
+      // or ConvexError from high contention. In Convex, `runMutation` will retry OCC internally,
+      // but if we hit extreme contention, it might fail out. We'll tell our `retryWithBackoff` to retry.
+      throw { retry: true, error: e };
+    }
+  });
+}
+
+
 
 export const agentRememberConversation = internalAction({
   args: {
@@ -33,13 +54,9 @@ export const agentRememberConversation = internalAction({
       args.conversationId as GameId<'conversations'>,
     );
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
-      worldId: args.worldId,
-      name: 'finishRememberConversation',
-      args: {
-        agentId: args.agentId,
-        operationId: args.operationId,
-      },
+    await sendInputWithRetries(ctx, args.worldId, 'finishRememberConversation', {
+      agentId: args.agentId,
+      operationId: args.operationId,
     });
   },
 });
@@ -115,14 +132,10 @@ export const agentDoSomething = internalAction({
     if (!player.pathfinding) {
       if (recentActivity || justLeftConversation) {
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: agent.id,
-            destination: wanderDestination(map),
-          },
+        await sendInputWithRetries(ctx, args.worldId, 'finishDoSomething', {
+          operationId: args.operationId,
+          agentId: agent.id,
+          destination: wanderDestination(map),
         });
         return;
       } else {
@@ -162,17 +175,13 @@ Output in JSON format with two keys: "description" (a short string describing th
         }
 
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: agent.id,
-            activity: {
-              description: activity.description,
-              emoji: activity.emoji,
-              until: Date.now() + activity.duration,
-            },
+        await sendInputWithRetries(ctx, args.worldId, 'finishDoSomething', {
+          operationId: args.operationId,
+          agentId: agent.id,
+          activity: {
+            description: activity.description,
+            emoji: activity.emoji,
+            until: Date.now() + activity.duration,
           },
         });
         return;
@@ -191,14 +200,10 @@ Output in JSON format with two keys: "description" (a short string describing th
     // TODO: We hit a lot of OCC errors on sending inputs in this file. It's
     // easy for them to get scheduled at the same time and line up in time.
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
-      worldId: args.worldId,
-      name: 'finishDoSomething',
-      args: {
-        operationId: args.operationId,
-        agentId: args.agent.id,
-        invitee,
-      },
+    await sendInputWithRetries(ctx, args.worldId, 'finishDoSomething', {
+      operationId: args.operationId,
+      agentId: args.agent.id,
+      invitee,
     });
   },
 });
