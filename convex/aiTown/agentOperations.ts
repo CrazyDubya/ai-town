@@ -1,4 +1,4 @@
-import { chatCompletion } from "../util/llm";
+import { chatCompletion, retryWithBackoff } from "../util/llm";
 import { v } from 'convex/values';
 import { internalAction, internalQuery } from '../_generated/server';
 import { WorldMap, serializedWorldMap } from './worldMap';
@@ -33,13 +33,20 @@ export const agentRememberConversation = internalAction({
       args.conversationId as GameId<'conversations'>,
     );
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
-      worldId: args.worldId,
-      name: 'finishRememberConversation',
-      args: {
-        agentId: args.agentId,
-        operationId: args.operationId,
-      },
+    await retryWithBackoff(async () => {
+      try {
+        await ctx.runMutation(api.aiTown.main.sendInput, {
+          worldId: args.worldId,
+          name: 'finishRememberConversation',
+          args: {
+            agentId: args.agentId,
+            operationId: args.operationId,
+          },
+        });
+      } catch (e: any) {
+        const isOcc = e.message && e.message.includes('Too many concurrent requests');
+        throw { retry: !!isOcc, error: e };
+      }
     });
   },
 });
@@ -78,15 +85,22 @@ export const agentGenerateMessage = internalAction({
       args.otherPlayerId as GameId<'players'>,
     );
 
-    await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
-      worldId: args.worldId,
-      conversationId: args.conversationId,
-      agentId: args.agentId,
-      playerId: args.playerId,
-      text,
-      messageUuid: args.messageUuid,
-      leaveConversation: args.type === 'leave',
-      operationId: args.operationId,
+    await retryWithBackoff(async () => {
+      try {
+        await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
+          worldId: args.worldId,
+          conversationId: args.conversationId,
+          agentId: args.agentId,
+          playerId: args.playerId,
+          text,
+          messageUuid: args.messageUuid,
+          leaveConversation: args.type === 'leave',
+          operationId: args.operationId,
+        });
+      } catch (e: any) {
+        const isOcc = e.message && e.message.includes('Too many concurrent requests');
+        throw { retry: !!isOcc, error: e };
+      }
     });
   },
 });
@@ -115,14 +129,21 @@ export const agentDoSomething = internalAction({
     if (!player.pathfinding) {
       if (recentActivity || justLeftConversation) {
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: agent.id,
-            destination: wanderDestination(map),
-          },
+        await retryWithBackoff(async () => {
+          try {
+            await ctx.runMutation(api.aiTown.main.sendInput, {
+              worldId: args.worldId,
+              name: 'finishDoSomething',
+              args: {
+                operationId: args.operationId,
+                agentId: agent.id,
+                destination: wanderDestination(map),
+              },
+            });
+          } catch (e: any) {
+            const isOcc = e.message && e.message.includes('Too many concurrent requests');
+            throw { retry: !!isOcc, error: e };
+          }
         });
         return;
       } else {
@@ -162,18 +183,25 @@ Output in JSON format with two keys: "description" (a short string describing th
         }
 
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: agent.id,
-            activity: {
-              description: activity.description,
-              emoji: activity.emoji,
-              until: Date.now() + activity.duration,
-            },
-          },
+        await retryWithBackoff(async () => {
+          try {
+            await ctx.runMutation(api.aiTown.main.sendInput, {
+              worldId: args.worldId,
+              name: 'finishDoSomething',
+              args: {
+                operationId: args.operationId,
+                agentId: agent.id,
+                activity: {
+                  description: activity.description,
+                  emoji: activity.emoji,
+                  until: Date.now() + activity.duration,
+                },
+              },
+            });
+          } catch (e: any) {
+            const isOcc = e.message && e.message.includes('Too many concurrent requests');
+            throw { retry: !!isOcc, error: e };
+          }
         });
         return;
       }
@@ -191,14 +219,21 @@ Output in JSON format with two keys: "description" (a short string describing th
     // TODO: We hit a lot of OCC errors on sending inputs in this file. It's
     // easy for them to get scheduled at the same time and line up in time.
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
-      worldId: args.worldId,
-      name: 'finishDoSomething',
-      args: {
-        operationId: args.operationId,
-        agentId: args.agent.id,
-        invitee,
-      },
+    await retryWithBackoff(async () => {
+      try {
+        await ctx.runMutation(api.aiTown.main.sendInput, {
+          worldId: args.worldId,
+          name: 'finishDoSomething',
+          args: {
+            operationId: args.operationId,
+            agentId: args.agent.id,
+            invitee,
+          },
+        });
+      } catch (e: any) {
+        const isOcc = e.message && e.message.includes('Too many concurrent requests');
+        throw { retry: !!isOcc, error: e };
+      }
     });
   },
 });
