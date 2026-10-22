@@ -1,4 +1,4 @@
-import { chatCompletion } from "../util/llm";
+import { chatCompletion, retryWithBackoff } from "../util/llm";
 import { v } from 'convex/values';
 import { internalAction, internalQuery } from '../_generated/server';
 import { WorldMap, serializedWorldMap } from './worldMap';
@@ -15,6 +15,27 @@ import { ACTIVITIES, ACTIVITY_COOLDOWN, CONVERSATION_COOLDOWN } from '../constan
 import { api, internal } from '../_generated/api';
 import { sleep } from '../util/sleep';
 import { serializedPlayer } from './player';
+
+
+async function sendInputWithRetries(ctx: any, args: any) {
+  return await retryWithBackoff(async () => {
+    try {
+      await ctx.runMutation(api.aiTown.main.sendInput, args);
+    } catch (e: any) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        msg.includes('concurrency') ||
+        msg.includes('concurrent') ||
+        msg.includes('OCC') ||
+        msg.includes('TooManyConcurrentRequests') ||
+        msg.includes('occ')
+      ) {
+        throw { retry: true, error: e };
+      }
+      throw e;
+    }
+  });
+}
 
 export const agentRememberConversation = internalAction({
   args: {
@@ -33,7 +54,7 @@ export const agentRememberConversation = internalAction({
       args.conversationId as GameId<'conversations'>,
     );
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
+    await sendInputWithRetries(ctx, {
       worldId: args.worldId,
       name: 'finishRememberConversation',
       args: {
@@ -115,7 +136,7 @@ export const agentDoSomething = internalAction({
     if (!player.pathfinding) {
       if (recentActivity || justLeftConversation) {
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
+        await sendInputWithRetries(ctx, {
           worldId: args.worldId,
           name: 'finishDoSomething',
           args: {
@@ -162,7 +183,7 @@ Output in JSON format with two keys: "description" (a short string describing th
         }
 
         await sleep(Math.random() * 1000);
-        await ctx.runMutation(api.aiTown.main.sendInput, {
+        await sendInputWithRetries(ctx, {
           worldId: args.worldId,
           name: 'finishDoSomething',
           args: {
@@ -191,7 +212,7 @@ Output in JSON format with two keys: "description" (a short string describing th
     // TODO: We hit a lot of OCC errors on sending inputs in this file. It's
     // easy for them to get scheduled at the same time and line up in time.
     await sleep(Math.random() * 1000);
-    await ctx.runMutation(api.aiTown.main.sendInput, {
+    await sendInputWithRetries(ctx, {
       worldId: args.worldId,
       name: 'finishDoSomething',
       args: {
