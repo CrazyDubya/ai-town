@@ -354,13 +354,21 @@ export const agentSendMessage = internalMutation({
     operationId: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert('messages', {
-      conversationId: args.conversationId,
-      author: args.playerId,
-      text: args.text,
-      messageUuid: args.messageUuid,
-      worldId: args.worldId,
-    });
+    const existing = await ctx.db
+      .query('messages')
+      .withIndex('messageUuid', (q) =>
+        q.eq('conversationId', args.conversationId).eq('messageUuid', args.messageUuid)
+      )
+      .unique();
+    if (!existing) {
+      await ctx.db.insert('messages', {
+        conversationId: args.conversationId,
+        author: args.playerId,
+        text: args.text,
+        messageUuid: args.messageUuid,
+        worldId: args.worldId,
+      });
+    }
     await insertInput(ctx, args.worldId, 'agentFinishSendingMessage', {
       conversationId: args.conversationId,
       agentId: args.agentId,

@@ -14,6 +14,30 @@ import { serializedAgent } from './agent';
 import { ACTIVITIES, ACTIVITY_COOLDOWN, CONVERSATION_COOLDOWN } from '../constants';
 import { api, internal } from '../_generated/api';
 import { sleep } from '../util/sleep';
+
+async function sendInputWithRetries(ctx: any, name: string, args: any) {
+  return await retryWithBackoff(async () => {
+    try {
+      return await ctx.runMutation(api.aiTown.main.sendInput, {
+        worldId: args.worldId,
+        name,
+        args,
+      });
+    } catch (e: any) {
+      const msg = e.message?.toLowerCase() || '';
+      if (
+        msg.includes('concurrency') ||
+        msg.includes('concurrent') ||
+        msg.includes('too many concurrent requests') ||
+        msg.includes('occ')
+      ) {
+        throw { retry: true, error: e };
+      }
+      throw e;
+    }
+  });
+}
+
 import { serializedPlayer } from './player';
 
 export const agentRememberConversation = internalAction({
@@ -33,23 +57,7 @@ export const agentRememberConversation = internalAction({
       args.conversationId as GameId<'conversations'>,
     );
     await sleep(Math.random() * 1000);
-    await retryWithBackoff(async () => {
-      try {
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishRememberConversation',
-          args: {
-            agentId: args.agentId,
-            operationId: args.operationId,
-          },
-        });
-      } catch (e: any) {
-        if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-          throw { retry: true, error: e };
-        }
-        throw e;
-      }
-    });
+    await sendInputWithRetries(ctx, 'finishRememberConversation', { worldId: args.worldId, agentId: args.agentId, operationId: args.operationId });
   },
 });
 
@@ -87,15 +95,30 @@ export const agentGenerateMessage = internalAction({
       args.otherPlayerId as GameId<'players'>,
     );
 
-    await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
-      worldId: args.worldId,
-      conversationId: args.conversationId,
-      agentId: args.agentId,
-      playerId: args.playerId,
-      text,
-      messageUuid: args.messageUuid,
-      leaveConversation: args.type === 'leave',
-      operationId: args.operationId,
+    await retryWithBackoff(async () => {
+      try {
+        await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
+          worldId: args.worldId,
+          conversationId: args.conversationId,
+          agentId: args.agentId,
+          playerId: args.playerId,
+          text,
+          messageUuid: args.messageUuid,
+          leaveConversation: args.type === 'leave',
+          operationId: args.operationId,
+        });
+      } catch (e: any) {
+        const msg = e.message?.toLowerCase() || '';
+        if (
+          msg.includes('concurrency') ||
+          msg.includes('concurrent') ||
+          msg.includes('too many concurrent requests') ||
+          msg.includes('occ')
+        ) {
+          throw { retry: true, error: e };
+        }
+        throw e;
+      }
     });
   },
 });
@@ -124,24 +147,7 @@ export const agentDoSomething = internalAction({
     if (!player.pathfinding) {
       if (recentActivity || justLeftConversation) {
         await sleep(Math.random() * 1000);
-        await retryWithBackoff(async () => {
-          try {
-            await ctx.runMutation(api.aiTown.main.sendInput, {
-              worldId: args.worldId,
-              name: 'finishDoSomething',
-              args: {
-                operationId: args.operationId,
-                agentId: agent.id,
-                destination: wanderDestination(map),
-              },
-            });
-          } catch (e: any) {
-            if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-              throw { retry: true, error: e };
-            }
-            throw e;
-          }
-        });
+        await sendInputWithRetries(ctx, 'finishDoSomething', { worldId: args.worldId, operationId: args.operationId, agentId: agent.id, destination: wanderDestination(map) });
         return;
       } else {
         let activity = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
@@ -180,28 +186,7 @@ Output in JSON format with two keys: "description" (a short string describing th
         }
 
         await sleep(Math.random() * 1000);
-        await retryWithBackoff(async () => {
-          try {
-            await ctx.runMutation(api.aiTown.main.sendInput, {
-              worldId: args.worldId,
-              name: 'finishDoSomething',
-              args: {
-                operationId: args.operationId,
-                agentId: agent.id,
-                activity: {
-                  description: activity.description,
-                  emoji: activity.emoji,
-                  until: Date.now() + activity.duration,
-                },
-              },
-            });
-          } catch (e: any) {
-            if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-              throw { retry: true, error: e };
-            }
-            throw e;
-          }
-        });
+        await sendInputWithRetries(ctx, 'finishDoSomething', { worldId: args.worldId, operationId: args.operationId, agentId: agent.id, activity: { description: activity.description, emoji: activity.emoji, until: Date.now() + activity.duration } });
         return;
       }
     }
@@ -215,27 +200,10 @@ Output in JSON format with two keys: "description" (a short string describing th
             otherFreePlayers: args.otherFreePlayers,
           });
 
-    // TODO: We hit a lot of OCC errors on sending inputs in this file. It's
-    // easy for them to get scheduled at the same time and line up in time.
+    // Jitter plus retryWithBackoff handles OCC errors on sending inputs in this file.
+    // It's easy for them to get scheduled at the same time and line up in time.
     await sleep(Math.random() * 1000);
-    await retryWithBackoff(async () => {
-      try {
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: args.agent.id,
-            invitee,
-          },
-        });
-      } catch (e: any) {
-        if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-          throw { retry: true, error: e };
-        }
-        throw e;
-      }
-    });
+    await sendInputWithRetries(ctx, 'finishDoSomething', { worldId: args.worldId, operationId: args.operationId, agentId: args.agent.id, invitee });
   },
 });
 
