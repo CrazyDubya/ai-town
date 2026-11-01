@@ -230,7 +230,7 @@ export const processConversationForEvolution = internalAction({
             // Check peer reputation (mentor must have positive view of apprentice)
             if (canMentor) {
               const peerRep = await ctx.db
-                .query('peerReputation')
+                .query('peerReputations')
                 .withIndex('observer', (q: any) =>
                   q.eq('worldId', args.worldId).eq('observer', mentorId).eq('subject', apprenticeId)
                 )
@@ -330,7 +330,7 @@ export const evolutionTick = internalAction({
           // +1 reputation per mastered skill (expert/master level)
           // This accumulates over time, making elders naturally prestigious
           await ctx.db.patch(reputation._id, {
-            communityReputation: Math.min(100, reputation.communityReputation + masteryCount * 0.1),
+            likeability: Math.min(100, reputation.likeability + masteryCount * 0.1),
             updatedAt: Date.now(),
           });
 

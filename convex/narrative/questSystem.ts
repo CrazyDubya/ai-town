@@ -223,7 +223,7 @@ export const generateQuestsForAgent = internalMutation({
 
     // REPUTATION QUESTS
     // If reputation is very low, generate redemption quest
-    if (reputation && reputation.communityReputation < -40) {
+    if (reputation && reputation.likeability < -40) {
       const questId = await ctx.db.insert('narrativeQuests', {
         worldId: args.worldId,
         questType: 'social',
@@ -242,7 +242,7 @@ export const generateQuestsForAgent = internalMutation({
           {
             description: 'Improve community reputation by 20 points',
             type: 'reputation',
-            threshold: reputation.communityReputation + 20,
+            threshold: reputation.likeability + 20,
             completed: false,
           },
         ],
@@ -557,7 +557,7 @@ export const updateQuestProgress = internalMutation({
 
             if (reputation) {
               await ctx.db.patch(reputation._id, {
-                communityReputation: reputation.communityReputation + quest.reputationChange,
+                likeability: reputation.likeability + quest.reputationChange,
               });
             }
           }
