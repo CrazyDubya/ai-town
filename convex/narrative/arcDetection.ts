@@ -305,13 +305,13 @@ async function analyzeEventsForPattern(
 
   if (
     agent1Rep &&
-    agent1Rep.communityReputation < -30 &&
+    agent1Rep.likeability < -30 &&
     avgEmotions.joy > 40 &&
     args.events.length >= 4
   ) {
     return {
       arcType: 'redemption' as const,
-      intensity: Math.abs(agent1Rep.communityReputation),
+      intensity: Math.abs(agent1Rep.likeability),
       title: 'A Path to Redemption',
       summary: `Despite past mistakes, positive change is emerging.`,
       memorability: 85,
