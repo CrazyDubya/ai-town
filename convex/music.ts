@@ -53,8 +53,11 @@ export const enqueueBackgroundMusicGeneration = internalAction({
       console.log('No active default world, returning.');
       return;
     }
-    // TODO: MusicGen-Large on Replicate only allows 30 seconds. Use MusicGen-Small for longer?
-    await generateMusic('16-bit RPG adventure game with wholesome vibe', 30);
+    await generateMusic({
+      prompt: '16-bit RPG adventure game with wholesome vibe',
+      duration: 120,
+      model_version: 'small',
+    });
   },
 });
 
@@ -98,22 +101,40 @@ enum MusicGenFormat {
  * @returns object containing metadata of the prediction with ID to fetch once result is completed
  */
 export async function generateMusic(
-  prompt: string,
-  duration: number,
-  webhook: string = process.env.CONVEX_SITE_URL + '/replicate_webhook' || '',
-  webhook_events_filter: [WebhookEventType] = ['completed'],
-  normalization_strategy: MusicGenNormStrategy = MusicGenNormStrategy.Peak,
-  output_format: MusicGenFormat = MusicGenFormat.mp3,
-  top_k = 250,
-  top_p = 0,
-  temperature = 1,
-  classifer_free_gudance = 3,
-  seed = -1,
-  model_version = 'large',
+  options: {
+    prompt: string;
+    duration: number;
+    webhook?: string;
+    webhook_events_filter?: [WebhookEventType];
+    normalization_strategy?: MusicGenNormStrategy;
+    output_format?: MusicGenFormat;
+    top_k?: number;
+    top_p?: number;
+    temperature?: number;
+    classifer_free_gudance?: number;
+    seed?: number;
+    model_version?: string;
+  }
 ) {
   if (!replicateAvailable()) {
     throw new Error('Replicate API token not set');
   }
+
+  const {
+    prompt,
+    duration,
+    webhook = process.env.CONVEX_SITE_URL + '/replicate_webhook' || '',
+    webhook_events_filter = ['completed'],
+    normalization_strategy = MusicGenNormStrategy.Peak,
+    output_format = MusicGenFormat.mp3,
+    top_k = 250,
+    top_p = 0,
+    temperature = 1,
+    classifer_free_gudance = 3,
+    seed = -1,
+    model_version = 'large',
+  } = options;
+
   return await client().predictions.create({
     // https://replicate.com/facebookresearch/musicgen/versions/7a76a8258b23fae65c5a22debb8841d1d7e816b75c2f24218cd2bd8573787906
     version: '7a76a8258b23fae65c5a22debb8841d1d7e816b75c2f24218cd2bd8573787906',
