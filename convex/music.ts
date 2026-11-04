@@ -53,8 +53,21 @@ export const enqueueBackgroundMusicGeneration = internalAction({
       console.log('No active default world, returning.');
       return;
     }
-    // TODO: MusicGen-Large on Replicate only allows 30 seconds. Use MusicGen-Small for longer?
-    await generateMusic('16-bit RPG adventure game with wholesome vibe', 30);
+    // Use MusicGen-Small for longer generation time (Large is limited to 30s)
+    await generateMusic(
+      '16-bit RPG adventure game with wholesome vibe',
+      120, // 120 seconds of audio
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'small'
+    );
   },
 });
 
