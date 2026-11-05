@@ -87,15 +87,25 @@ export const agentGenerateMessage = internalAction({
       args.otherPlayerId as GameId<'players'>,
     );
 
-    await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
-      worldId: args.worldId,
-      conversationId: args.conversationId,
-      agentId: args.agentId,
-      playerId: args.playerId,
-      text,
-      messageUuid: args.messageUuid,
-      leaveConversation: args.type === 'leave',
-      operationId: args.operationId,
+    await sleep(Math.random() * 1000);
+    await retryWithBackoff(async () => {
+      try {
+        await ctx.runMutation(internal.aiTown.agent.agentSendMessage, {
+          worldId: args.worldId,
+          conversationId: args.conversationId,
+          agentId: args.agentId,
+          playerId: args.playerId,
+          text,
+          messageUuid: args.messageUuid,
+          leaveConversation: args.type === 'leave',
+          operationId: args.operationId,
+        });
+      } catch (e: any) {
+        if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
+          throw { retry: true, error: e };
+        }
+        throw e;
+      }
     });
   },
 });
