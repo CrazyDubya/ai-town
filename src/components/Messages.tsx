@@ -129,9 +129,7 @@ export function Messages({
             <p className="text-brown-700 text-center">{playerName} left the conversation.</p>
           </div>
         ),
-        // Always sort all "left" messages after the last message.
-        // TODO: We can remove this once we want to support more than two participants per conversation.
-        time: Math.max(lastMessageTs + 1, ended),
+        time: ended,
       });
     }
   }

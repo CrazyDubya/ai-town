@@ -44,7 +44,13 @@ export const PixiStaticMap = PixiComponent('StaticMap', {
     const screenytiles = map.bgTiles[0][0].length;
 
     const container = new PIXI.Container();
-    const allLayers = [...map.bgTiles, ...map.objectTiles];
+    const bgContainer = new PIXI.Container();
+    const objectContainer = new PIXI.Container();
+    const spritesContainer = new PIXI.Container();
+
+    container.addChild(bgContainer);
+    container.addChild(objectContainer);
+    container.addChild(spritesContainer);
 
     // blit bg & object layers of map onto canvas
     for (let i = 0; i < screenxtiles * screenytiles; i++) {
@@ -54,18 +60,28 @@ export const PixiStaticMap = PixiComponent('StaticMap', {
       const yPx = y * map.tileDim;
 
       // Add all layers of backgrounds.
-      for (const layer of allLayers) {
+      for (const layer of map.bgTiles) {
         const tileIndex = layer[x][y];
         // Some layers may not have tiles at this location.
         if (tileIndex === -1) continue;
         const ctile = new PIXI.Sprite(tiles[tileIndex]);
         ctile.x = xPx;
         ctile.y = yPx;
-        container.addChild(ctile);
+        bgContainer.addChild(ctile);
+      }
+
+      // Add all layers of objects.
+      for (const layer of map.objectTiles) {
+        const tileIndex = layer[x][y];
+        // Some layers may not have tiles at this location.
+        if (tileIndex === -1) continue;
+        const ctile = new PIXI.Sprite(tiles[tileIndex]);
+        ctile.x = xPx;
+        ctile.y = yPx;
+        objectContainer.addChild(ctile);
       }
     }
 
-    // TODO: Add layers.
     const spritesBySheet = new Map<string, AnimatedSprite[]>();
     for (const sprite of map.animatedSprites) {
       const sheet = sprite.sheet;
@@ -99,7 +115,7 @@ export const PixiStaticMap = PixiComponent('StaticMap', {
           pixiSprite.y = sprite.y;
           pixiSprite.width = sprite.w;
           pixiSprite.height = sprite.h;
-          container.addChild(pixiSprite);
+          spritesContainer.addChild(pixiSprite);
           pixiSprite.play();
         }
       });
