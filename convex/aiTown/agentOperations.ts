@@ -1,4 +1,4 @@
-import { chatCompletion, retryWithBackoff } from "../util/llm";
+import { chatCompletion, retryWithBackoff } from '../util/llm';
 import { v } from 'convex/values';
 import { internalAction, internalQuery } from '../_generated/server';
 import { WorldMap, serializedWorldMap } from './worldMap';
@@ -32,23 +32,15 @@ export const agentRememberConversation = internalAction({
       args.playerId as GameId<'players'>,
       args.conversationId as GameId<'conversations'>,
     );
-    await sleep(Math.random() * 1000);
-    await retryWithBackoff(async () => {
-      try {
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishRememberConversation',
-          args: {
-            agentId: args.agentId,
-            operationId: args.operationId,
-          },
-        });
-      } catch (e: any) {
-        if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-          throw { retry: true, error: e };
-        }
-        throw e;
-      }
+    await runWithOCCRetry(async () => {
+      await ctx.runMutation(api.aiTown.main.sendInput, {
+        worldId: args.worldId,
+        name: 'finishRememberConversation',
+        args: {
+          agentId: args.agentId,
+          operationId: args.operationId,
+        },
+      });
     });
   },
 });
@@ -123,24 +115,16 @@ export const agentDoSomething = internalAction({
     // Decide whether to do an activity or wander somewhere.
     if (!player.pathfinding) {
       if (recentActivity || justLeftConversation) {
-        await sleep(Math.random() * 1000);
-        await retryWithBackoff(async () => {
-          try {
-            await ctx.runMutation(api.aiTown.main.sendInput, {
-              worldId: args.worldId,
-              name: 'finishDoSomething',
-              args: {
-                operationId: args.operationId,
-                agentId: agent.id,
-                destination: wanderDestination(map),
-              },
-            });
-          } catch (e: any) {
-            if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-              throw { retry: true, error: e };
-            }
-            throw e;
-          }
+        await runWithOCCRetry(async () => {
+          await ctx.runMutation(api.aiTown.main.sendInput, {
+            worldId: args.worldId,
+            name: 'finishDoSomething',
+            args: {
+              operationId: args.operationId,
+              agentId: agent.id,
+              destination: wanderDestination(map),
+            },
+          });
         });
         return;
       } else {
@@ -152,7 +136,7 @@ export const agentDoSomething = internalAction({
               worldId: args.worldId,
               agentId: agent.id,
               playerId: player.id,
-            }
+            },
           );
 
           const prompt = `You are ${name}.
@@ -176,31 +160,23 @@ Output in JSON format with two keys: "description" (a short string describing th
             };
           }
         } catch (e) {
-          console.error("Failed to generate activity with LLM, falling back to random:", e);
+          console.error('Failed to generate activity with LLM, falling back to random:', e);
         }
 
-        await sleep(Math.random() * 1000);
-        await retryWithBackoff(async () => {
-          try {
-            await ctx.runMutation(api.aiTown.main.sendInput, {
-              worldId: args.worldId,
-              name: 'finishDoSomething',
-              args: {
-                operationId: args.operationId,
-                agentId: agent.id,
-                activity: {
-                  description: activity.description,
-                  emoji: activity.emoji,
-                  until: Date.now() + activity.duration,
-                },
+        await runWithOCCRetry(async () => {
+          await ctx.runMutation(api.aiTown.main.sendInput, {
+            worldId: args.worldId,
+            name: 'finishDoSomething',
+            args: {
+              operationId: args.operationId,
+              agentId: agent.id,
+              activity: {
+                description: activity.description,
+                emoji: activity.emoji,
+                until: Date.now() + activity.duration,
               },
-            });
-          } catch (e: any) {
-            if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-              throw { retry: true, error: e };
-            }
-            throw e;
-          }
+            },
+          });
         });
         return;
       }
@@ -215,29 +191,38 @@ Output in JSON format with two keys: "description" (a short string describing th
             otherFreePlayers: args.otherFreePlayers,
           });
 
-    // TODO: We hit a lot of OCC errors on sending inputs in this file. It's
-    // easy for them to get scheduled at the same time and line up in time.
-    await sleep(Math.random() * 1000);
-    await retryWithBackoff(async () => {
-      try {
-        await ctx.runMutation(api.aiTown.main.sendInput, {
-          worldId: args.worldId,
-          name: 'finishDoSomething',
-          args: {
-            operationId: args.operationId,
-            agentId: args.agent.id,
-            invitee,
-          },
-        });
-      } catch (e: any) {
-        if (e.message?.includes('concurrency') || e.message?.includes('TooManyConcurrentRequests')) {
-          throw { retry: true, error: e };
-        }
-        throw e;
-      }
+    await runWithOCCRetry(async () => {
+      await ctx.runMutation(api.aiTown.main.sendInput, {
+        worldId: args.worldId,
+        name: 'finishDoSomething',
+        args: {
+          operationId: args.operationId,
+          agentId: args.agent.id,
+          invitee,
+        },
+      });
     });
   },
 });
+
+export async function runWithOCCRetry<T>(fn: () => Promise<T>): Promise<T> {
+  await sleep(Math.random() * 1000);
+  const response = await retryWithBackoff(async () => {
+    try {
+      return await fn();
+    } catch (e: any) {
+      if (
+        e.message?.includes('concurrency') ||
+        e.message?.includes('TooManyConcurrentRequests') ||
+        e.message?.includes('OCC')
+      ) {
+        throw { retry: true, error: e };
+      }
+      throw e;
+    }
+  });
+  return response.result;
+}
 
 function wanderDestination(worldMap: WorldMap) {
   // Wander someonewhere at least one tile away from the edge.
@@ -287,7 +272,9 @@ export const initializeAgentEmotions = internalAction({
         worldId: args.worldId,
         agentId: args.agentId,
       });
-      console.log(`Initialized narrative systems for agent ${args.characterName} (${args.agentId})`);
+      console.log(
+        `Initialized narrative systems for agent ${args.characterName} (${args.agentId})`,
+      );
 
       // PHASE 6: Initialize evolution systems (learning, personality tracking, legacy)
       const psychology = await ctx.runQuery(internal.emotions.integration.getEmotionalContext, {
@@ -307,7 +294,9 @@ export const initializeAgentEmotions = internalAction({
             neuroticism: psychology.personality.neuroticism,
           },
         });
-        console.log(`Initialized evolution systems for agent ${args.characterName} (${args.agentId})`);
+        console.log(
+          `Initialized evolution systems for agent ${args.characterName} (${args.agentId})`,
+        );
       }
     } catch (error) {
       console.log(`Could not initialize agent systems for ${args.agentId}:`, error);
@@ -325,11 +314,15 @@ export const agentDescriptionQuery = internalQuery({
   handler: async (ctx, args) => {
     const playerDescription = await ctx.db
       .query('playerDescriptions')
-      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('playerId', args.playerId as GameId<'players'>))
+      .withIndex('worldId', (q) =>
+        q.eq('worldId', args.worldId).eq('playerId', args.playerId as GameId<'players'>),
+      )
       .first();
     const agentDescription = await ctx.db
       .query('agentDescriptions')
-      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', args.agentId as GameId<'agents'>))
+      .withIndex('worldId', (q) =>
+        q.eq('worldId', args.worldId).eq('agentId', args.agentId as GameId<'agents'>),
+      )
       .first();
     return {
       name: playerDescription?.name || 'Unknown',
